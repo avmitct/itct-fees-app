@@ -1,0 +1,24 @@
+
+/* Styles */
+body{font-family:Arial, Helvetica, sans-serif;background:#f6f7fb;color:#222;margin:0;padding:1rem;}
+.header{background:#fff;padding:.75rem;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-bottom:1rem;text-align:center;}
+.header-inner{display:flex;align-items:center;gap:.75rem;justify-content:center;}
+.logo{width:64px;height:64px;object-fit:contain;border-radius:8px;}
+.title{display:flex;flex-direction:column;align-items:flex-start;}
+.name{font-weight:700;font-size:1.05rem;}
+.location{font-size:0.9rem;color:#555;}
+.sub{color:#555;margin:0;font-size:.85rem;}
+.card{background:#fff;padding:1rem;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.08);margin-bottom:1rem;}
+.hidden{display:none !important;}
+.toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;}
+input,button,select,textarea{padding:.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem;}
+button{background:#0366d6;color:#fff;border:none;cursor:pointer;}
+button.secondary{background:#6c757d;}
+#list{list-style:none;padding:0;margin:0;}
+.student-item{display:flex;justify-content:space-between;align-items:center;padding:.6rem;border-bottom:1px solid #f0f0f0;}
+.student-item .info{max-width:60%;}
+.actions button{margin-left:.3rem;}
+#modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;pointer-events:auto;}
+.modal-card{background:#fff;padding:1rem;border-radius:8px;max-width:500px;width:90%;}
+.row{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem;}
+@media(max-width:520px){.header-inner{flex-direction:row;gap:.5rem}.logo{width:56px;height:56px}}

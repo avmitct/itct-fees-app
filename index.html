@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="mr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ITCT Fees Collection</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <img src="logo.jpg" alt="ITCT Logo" class="logo" onerror="this.style.display='none'">
+      <div class="title">
+        <div class="name">ITCT Computer Education</div>
+        <div class="location">Nandurbar</div>
+      </div>
+    </div>
+    <p class="sub">शुल्क संकलन अनुप्रयोग (Offline + Backup)</p>
+  </header>
+
+  <main>
+    <section id="login-section" class="card">
+      <h2>Admin Login</h2>
+      <input id="admin-pass" type="password" placeholder="Password (default: 1234)" autofocus>
+      <button id="login-btn">लॉगिन करा</button>
+    </section>
+
+    <section id="app-section" class="hidden">
+      <div class="toolbar">
+        <button id="manage-courses-btn">Course व्यवस्थापन</button>
+        <button id="add-student-btn">नवीन विद्यार्थी जोडा</button>
+        <button id="reports-btn">Reports</button>
+        <button id="backup-btn">बॅकअप एक्सपोर्ट</button>
+        <button id="restore-btn">बॅकअप इम्पोर्ट</button>
+        <button id="settings-btn">Settings</button>
+        <input id="file-input" type="file" accept=".json" style="display:none;">
+      </div>
+
+      <!-- Course management -->
+      <section id="courses-section" class="card hidden">
+        <h3>Courses</h3>
+        <div class="row">
+          <input id="course-name" placeholder="Course name">
+          <input id="course-fee" placeholder="Fee (₹)" type="number">
+          <button id="add-course-btn">Add Course</button>
+        </div>
+        <ul id="courses-list"></ul>
+      </section>
+
+      <!-- Student form -->
+      <section id="student-form" class="card hidden">
+        <h3>विद्यार्थ्याची माहिती</h3>
+        <input id="name" placeholder="नाव *">
+        <input id="dob" placeholder="DOB (YYYY-MM-DD)">
+        <input id="age" placeholder="वय">
+        <input id="address" placeholder="पत्ता">
+        <select id="course-select"></select>
+        <input id="mobile" placeholder="मोबाईल *">
+        <input id="idproof" placeholder="ID Proof (आधार/पॅन)">
+        <button id="save-student-btn">जतन करा</button>
+        <button id="cancel-student-btn">रद्द करा</button>
+      </section>
+
+      <!-- Students list -->
+      <section id="students-list" class="card">
+        <h3>विद्यार्थी यादी</h3>
+        <input id="search" placeholder="शोध... नाव / कोर्स">
+        <ul id="list"></ul>
+      </section>
+
+      <!-- Reports -->
+      <section id="reports-section" class="card hidden">
+        <h3>Reports</h3>
+        <div class="row">
+          <select id="report-course"><option value="">-- सर्व --</option></select>
+          <input id="report-from" type="date">
+          <input id="report-to" type="date">
+          <button id="generate-report">Generate</button>
+          <button id="export-csv">Export CSV</button>
+          <button id="export-pdf">Export PDF</button>
+        </div>
+        <div id="report-output"></div>
+      </section>
+
+      <!-- Settings -->
+      <section id="settings-section" class="card hidden">
+        <h3>Settings</h3>
+        <div>
+          <label>Change Admin Password</label>
+          <input id="new-pass" type="password" placeholder="New password">
+          <button id="change-pass-btn">Change Password</button>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <template id="student-item-tpl">
+    <li class="student-item">
+      <div class="info">
+        <strong class="s-name"></strong>
+        <div class="s-meta"></div>
+      </div>
+      <div class="actions">
+        <button class="pay-btn">फीस भरा</button>
+        <button class="view-btn">पहा</button>
+        <button class="delete-btn">हटवा</button>
+      </div>
+    </li>
+  </template>
+
+  <div id="modal" class="hidden" aria-hidden="true"></div>
+
+  <!-- jsPDF CDN for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+  </script>
+</body>
+</html>
