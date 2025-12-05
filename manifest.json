@@ -1,11 +1,58 @@
 {
-  "name": "ITCT Fees Collection (Updated)",
+  "name": "ITCT Computer Education, Nandurbar",
   "short_name": "ITCT Fees",
-  "start_url": "/index.html",
+  "description": "शुल्क संकलन अनुप्रयोग - ITCT Computer Education, Nandurbar",
+  "start_url": "/itct-fees-app/index.html",
+  "scope": "/itct-fees-app/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#0366d6",
-  "icons": [ {"src": "/icon-192x192.png", "sizes":"192x192", "type":"image/png"},
-  {"src": "/icon-512x512.png", "sizes":"512x512", "type":"image/png"},
-  {"src": "/icon-512x512-maskable.png", "sizes":"512x512", "type":"image/png", "purpose":"maskable"}]
+  "icons": [
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "https://avmitct.github.io/itct-fees-app/icon-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
