@@ -1,122 +1,214 @@
-// ITCT Fees App - Phase 1 features
-// - Dashboard
-// - Discount in payments
-// - Balance report + CSV export
-// - WhatsApp / SMS reminders
-// - Courses, settings, backup/restore
+// ITCT Fees App - Phase 2
+// Features:
+// - Multi-user login (admin + data-entry)
+// - Multiple courses per student
+// - Per-course due date + Due/Overdue report
+// - Dashboard, Discount, Balance & Payment reports, CSV export
+// - WhatsApp/SMS reminders, Backup/Restore
 
-const DEFAULT_PASS = '1234';
 const STORAGE_KEYS = {
-  students: 'students_v2',
+  students: 'students_v3',
   courses:  'courses_v2',
-  admin:    'admin_v2'
+  adminOld: 'admin_v2',      // जुना डेटा migrate करण्यासाठी
+  users:    'itct_users_v1'
+};
+
+const DEFAULT_ADMIN = {
+  username: 'admin',
+  password: '1234',
+  role: 'admin'
 };
 
 const $ = id => document.getElementById(id);
 const { jsPDF } = window.jspdf || {};
 
-// Load data (with fallback from older key if any)
 let students = [];
 let courses  = [];
-let admin    = { pass: DEFAULT_PASS };
+let users    = [];
+let currentUser = null;
 
-try {
-  const s2 = localStorage.getItem(STORAGE_KEYS.students);
-  const s1 = localStorage.getItem('students'); // old key fallback
-  students = s2 ? JSON.parse(s2) : (s1 ? JSON.parse(s1) : []);
-} catch(e){ students = []; }
+// ---------- LOAD DATA & MIGRATE ----------
 
-try {
-  const c2 = localStorage.getItem(STORAGE_KEYS.courses);
-  courses = c2 ? JSON.parse(c2) : [];
-} catch(e){ courses = []; }
+function loadData(){
+  // Courses
+  try{
+    const c = localStorage.getItem(STORAGE_KEYS.courses);
+    courses = c ? JSON.parse(c) : [];
+  }catch(e){ courses = []; }
 
-try {
-  const a2 = localStorage.getItem(STORAGE_KEYS.admin);
-  admin = a2 ? JSON.parse(a2) : { pass: DEFAULT_PASS };
-} catch(e){ admin = { pass: DEFAULT_PASS }; }
+  // Users
+  try{
+    const u = localStorage.getItem(STORAGE_KEYS.users);
+    users = u ? JSON.parse(u) : [];
+  }catch(e){ users = []; }
 
-function saveAll(){
-  localStorage.setItem(STORAGE_KEYS.students, JSON.stringify(students));
-  localStorage.setItem(STORAGE_KEYS.courses,  JSON.stringify(courses));
-  localStorage.setItem(STORAGE_KEYS.admin,    JSON.stringify(admin));
+  // If no users, create default admin (possibly from old admin password)
+  if(!Array.isArray(users) || users.length === 0){
+    let pass = DEFAULT_ADMIN.password;
+    try{
+      const oldAdmin = localStorage.getItem(STORAGE_KEYS.adminOld);
+      if(oldAdmin){
+        const a = JSON.parse(oldAdmin);
+        if(a && a.pass) pass = a.pass;
+      }
+    }catch(e){}
+    users = [{
+      id: Date.now(),
+      username: DEFAULT_ADMIN.username,
+      password: pass,
+      role: 'admin'
+    }];
+    saveUsers();
+  }
+
+  // Students
+  try{
+    const s = localStorage.getItem(STORAGE_KEYS.students);
+    if(s){
+      students = JSON.parse(s);
+    }else{
+      // Attempt migrate from older key (students_v2 or students)
+      const s2 = localStorage.getItem('students_v2') || localStorage.getItem('students');
+      students = s2 ? JSON.parse(s2) : [];
+      students = migrateOldStudents(students);
+      saveStudents();
+    }
+  }catch(e){
+    students = [];
+  }
 }
+
+function migrateOldStudents(old){
+  if(!Array.isArray(old)) return [];
+  return old.map(s => {
+    if(Array.isArray(s.courses)) return s; // already new format
+    const fee = Number(s.courseFee || 0);
+    const courseName = s.course || 'Course';
+    const fees = Array.isArray(s.fees) ? s.fees : [];
+    const courseObj = {
+      id: Date.now() + Math.random(),
+      courseName,
+      totalFee: fee,
+      dueDate: '',      // जुना डेटा असल्यास due date नाही
+      fees
+    };
+    return {
+      id: s.id || (Date.now() + Math.random()),
+      name: s.name || '',
+      dob: s.dob || '',
+      age: s.age || '',
+      address: s.address || '',
+      mobile: s.mobile || '',
+      idproof: s.idproof || '',
+      courses: [courseObj]
+    };
+  });
+}
+
+function saveStudents(){
+  localStorage.setItem(STORAGE_KEYS.students, JSON.stringify(students));
+}
+function saveCourses(){
+  localStorage.setItem(STORAGE_KEYS.courses, JSON.stringify(courses));
+}
+function saveUsers(){
+  localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+}
+
+// ---------- UTILS ----------
 
 function fmt(n){ return Number(n || 0).toFixed(2); }
-function findCourseByName(name){
+function findCourseMaster(name){
   return courses.find(c => c.name === name) || null;
 }
-
-// Show sections helper
+function isAdmin(){
+  return currentUser && currentUser.role === 'admin';
+}
 function showOnly(sectionId){
-  ['dashboard-section','courses-section','student-form','students-list','reports-section','settings-section']
-    .forEach(id => {
-      const el = $(id);
-      if(!el) return;
-      if(id === sectionId) el.classList.remove('hidden');
-      else el.classList.add('hidden');
-    });
+  [
+    'dashboard-section',
+    'courses-section',
+    'student-form',
+    'students-list',
+    'reports-section',
+    'settings-section'
+  ].forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    if(id === sectionId) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
 }
 
-// LOGIN
+// ---------- LOGIN ----------
+
 $('login-btn').addEventListener('click', tryLogin);
-$('admin-pass').addEventListener('keydown', e => {
+$('login-password').addEventListener('keydown', e=>{
   if(e.key === 'Enter') tryLogin();
 });
 
 function tryLogin(){
-  const p = $('admin-pass').value;
-  const currentPass = admin.pass || DEFAULT_PASS;
-  if(p === currentPass){
-    $('login-section').classList.add('hidden');
-    $('app-section').classList.remove('hidden');
-    renderCourses();
-    renderCourseSelect();
-    renderStudents();
-    renderReportCourseOptions();
-    calcStats();
-  } else {
-    alert('चुकीचा पासवर्ड');
+  const uname = $('login-username').value.trim() || 'admin';
+  const pass  = $('login-password').value;
+
+  const u = users.find(x => x.username === uname && x.password === pass);
+  if(!u){
+    alert('चुकीचा username किंवा password');
+    return;
   }
+  currentUser = u;
+  afterLogin();
 }
 
-// Toolbar button actions
-$('dashboard-btn').addEventListener('click', ()=>{
-  showOnly('dashboard-section');
-  calcStats();
-});
-$('manage-courses-btn').addEventListener('click', ()=>{
-  showOnly('courses-section');
-  renderCourses();
-});
-$('add-student-btn').addEventListener('click', ()=>{
-  showOnly('student-form');
-  renderCourseSelect();
-  $('save-student-btn').dataset.editId = ''; // future use for editing
-});
-$('reports-btn').addEventListener('click', ()=>{
-  showOnly('reports-section');
-  renderReportCourseOptions();
-});
-$('settings-btn').addEventListener('click', ()=>{
-  showOnly('settings-section');
-});
-$('backup-btn').addEventListener('click', exportBackup);
-$('restore-btn').addEventListener('click', () => $('file-input').click());
-$('file-input').addEventListener('change', handleImport);
+function afterLogin(){
+  $('login-section').classList.add('hidden');
+  $('app-section').classList.remove('hidden');
 
-// Dashboard calculation
+  $('current-user-name').textContent = currentUser.username;
+  $('current-user-role').textContent = currentUser.role;
+
+  applyRoleUI();
+
+  renderCourses();
+  renderCourseSelect();
+  renderStudents();
+  renderReportCourseOptions();
+  calcStats();
+
+  showOnly('dashboard-section');
+}
+
+function applyRoleUI(){
+  // admin ला सर्व access, data-entry ला मर्यादित
+  const adminButtons = [
+    'manage-courses-btn',
+    'backup-btn',
+    'restore-btn',
+    'settings-btn'
+  ];
+  adminButtons.forEach(id=>{
+    const el = $(id);
+    if(!el) return;
+    if(isAdmin()) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
+}
+
+// ---------- DASHBOARD ----------
+
 function calcStats(){
   let totalStudents = students.length;
   let totalFee = 0, totalPaid = 0, totalDiscount = 0;
 
-  students.forEach(s => {
-    const fee = Number(s.courseFee || 0);
-    const paid = s.fees ? s.fees.reduce((a,b)=>a + Number(b.amount||0), 0) : 0;
-    const disc = s.fees ? s.fees.reduce((a,b)=>a + Number(b.discount||0), 0) : 0;
-    totalFee += fee;
-    totalPaid += paid;
-    totalDiscount += disc;
+  students.forEach(s=>{
+    (s.courses || []).forEach(c=>{
+      const fee  = Number(c.totalFee || 0);
+      const paid = (c.fees || []).reduce((a,b)=>a + Number(b.amount||0), 0);
+      const disc = (c.fees || []).reduce((a,b)=>a + Number(b.discount||0), 0);
+      totalFee += fee;
+      totalPaid += paid;
+      totalDiscount += disc;
+    });
   });
 
   const totalBalance = totalFee - totalPaid - totalDiscount;
@@ -128,8 +220,58 @@ function calcStats(){
   $('dash-total-balance').textContent  = 'Total balance: ₹' + fmt(totalBalance);
 }
 
-// COURSE MANAGEMENT
+// Toolbar actions
+$('dashboard-btn').addEventListener('click', ()=>{
+  showOnly('dashboard-section');
+  calcStats();
+});
+$('manage-courses-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('केवळ admin ला Courses manage करण्याची परवानगी आहे.');
+    return;
+  }
+  showOnly('courses-section');
+  renderCourses();
+});
+$('add-student-btn').addEventListener('click', ()=>{
+  showOnly('student-form');
+  renderCourseSelect();
+  clearStudentForm();
+});
+$('reports-btn').addEventListener('click', ()=>{
+  showOnly('reports-section');
+  renderReportCourseOptions();
+});
+$('settings-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('Settings बदलण्याची परवानगी केवळ admin ला आहे.');
+    return;
+  }
+  showOnly('settings-section');
+});
+$('backup-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('Backup केवळ admin करू शकतो.');
+    return;
+  }
+  exportBackup();
+});
+$('restore-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('Restore केवळ admin करू शकतो.');
+    return;
+  }
+  $('file-input').click();
+});
+$('file-input').addEventListener('change', handleImport);
+
+// ---------- COURSES (master list) ----------
+
 $('add-course-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('Courses add करण्याची परवानगी केवळ admin ला आहे.');
+    return;
+  }
   const name = $('course-name').value.trim();
   const fee  = parseFloat($('course-fee').value || '0');
   if(!name || isNaN(fee)){
@@ -139,7 +281,7 @@ $('add-course-btn').addEventListener('click', ()=>{
   courses.unshift({ name, fee });
   $('course-name').value = '';
   $('course-fee').value  = '';
-  saveAll();
+  saveCourses();
   renderCourses();
   renderCourseSelect();
   renderReportCourseOptions();
@@ -148,23 +290,25 @@ $('add-course-btn').addEventListener('click', ()=>{
 function renderCourses(){
   const list = $('courses-list');
   list.innerHTML = '';
-  courses.forEach((c, idx) => {
+  courses.forEach((c, idx)=>{
     const li = document.createElement('li');
     li.textContent = `${c.name} — ₹${fmt(c.fee)}`;
-    const btn = document.createElement('button');
-    btn.textContent = 'Delete';
-    btn.className = 'secondary';
-    btn.style.marginLeft = '0.5rem';
-    btn.addEventListener('click', ()=>{
-      if(confirm('हा कोर्स delete करायचा?')){
-        courses.splice(idx,1);
-        saveAll();
-        renderCourses();
-        renderCourseSelect();
-        renderReportCourseOptions();
-      }
-    });
-    li.appendChild(btn);
+    if(isAdmin()){
+      const btn = document.createElement('button');
+      btn.textContent = 'Delete';
+      btn.className = 'secondary';
+      btn.style.marginLeft = '0.5rem';
+      btn.addEventListener('click', ()=>{
+        if(confirm('हा course delete करायचा?')){
+          courses.splice(idx,1);
+          saveCourses();
+          renderCourses();
+          renderCourseSelect();
+          renderReportCourseOptions();
+        }
+      });
+      li.appendChild(btn);
+    }
     list.appendChild(li);
   });
 }
@@ -179,7 +323,7 @@ function renderCourseSelect(){
     sel.appendChild(o);
     return;
   }
-  courses.forEach(c =>{
+  courses.forEach(c=>{
     const o = document.createElement('option');
     o.value = c.name;
     o.textContent = `${c.name} — ₹${fmt(c.fee)}`;
@@ -187,35 +331,51 @@ function renderCourseSelect(){
   });
 }
 
-// STUDENT FORM
+// ---------- STUDENT FORM (first course) ----------
+
 $('cancel-student-btn').addEventListener('click', ()=>{
   showOnly('students-list');
 });
 
 $('save-student-btn').addEventListener('click', ()=>{
-  const s = {
-    id: Date.now(),
-    name: $('name').value.trim(),
-    dob: $('dob').value.trim(),
-    age: $('age').value.trim(),
-    address: $('address').value.trim(),
-    course: $('course-select').value,
-    mobile: $('mobile').value.trim(),
-    idproof: $('idproof').value.trim(),
-    courseFee: 0,
-    fees: []
-  };
+  const name    = $('name').value.trim();
+  const dob     = $('dob').value.trim();
+  const age     = $('age').value.trim();
+  const address = $('address').value.trim();
+  const mobile  = $('mobile').value.trim();
+  const idproof = $('idproof').value.trim();
+  const courseName = $('course-select').value;
+  const dueDate    = $('course-duedate').value; // YYYY-MM-DD
 
-  if(!s.name || !s.course || !s.mobile){
-    alert('कृपया * आवश्यक फील्ड भरा');
+  if(!name || !mobile || !courseName){
+    alert('नाव, मोबाईल आणि course निवडणे आवश्यक आहे');
     return;
   }
 
-  const selectedCourse = findCourseByName(s.course);
-  s.courseFee = selectedCourse ? Number(selectedCourse.fee) : 0;
+  const master = findCourseMaster(courseName);
+  const totalFee = master ? Number(master.fee) : 0;
 
-  students.unshift(s);
-  saveAll();
+  const courseObj = {
+    id: Date.now() + Math.random(),
+    courseName,
+    totalFee,
+    dueDate,   // may be ''
+    fees: []
+  };
+
+  const student = {
+    id: Date.now(),
+    name,
+    dob,
+    age,
+    address,
+    mobile,
+    idproof,
+    courses: [courseObj]
+  };
+
+  students.unshift(student);
+  saveStudents();
   clearStudentForm();
   renderStudents();
   calcStats();
@@ -223,64 +383,103 @@ $('save-student-btn').addEventListener('click', ()=>{
 });
 
 function clearStudentForm(){
-  ['name','dob','age','address','mobile','idproof'].forEach(id => $(id).value = '');
+  ['name','dob','age','address','mobile','idproof','course-duedate']
+    .forEach(id => $(id).value = '');
 }
 
-// STUDENTS LIST
+// ---------- STUDENT LIST ----------
+
 $('search').addEventListener('input', e => renderStudents(e.target.value));
 
 function renderStudents(filter = ''){
-  const tpl = $('student-item-tpl');
+  const tpl  = $('student-item-tpl');
   const list = $('list');
   list.innerHTML = '';
 
-  const data = students.filter(s => (
-    (s.name + ' ' + s.course + ' ' + s.mobile).toLowerCase()
-      .includes(filter.toLowerCase())
-  ));
+  const data = students.filter(s=>{
+    const text = (
+      s.name + ' ' +
+      (s.courses || []).map(c=>c.courseName).join(' ') + ' ' +
+      s.mobile
+    ).toLowerCase();
+    return text.includes(filter.toLowerCase());
+  });
 
-  data.forEach(s => {
-    const node = tpl.content.cloneNode(true);
+  data.forEach(s=>{
+    const node   = tpl.content.cloneNode(true);
     const nameEl = node.querySelector('.s-name');
     const metaEl = node.querySelector('.s-meta');
 
-    const fee  = Number(s.courseFee || 0);
-    const paid = s.fees ? s.fees.reduce((a,b)=>a + Number(b.amount||0),0) : 0;
-    const disc = s.fees ? s.fees.reduce((a,b)=>a + Number(b.discount||0),0) : 0;
-    const bal  = fee - paid - disc;
+    let totalFee = 0, totalPaid = 0, totalDiscount = 0;
 
-    nameEl.textContent = `${s.name} — ${s.course}`;
-    metaEl.textContent = `मोबाईल: ${s.mobile} | Fee: ₹${fmt(fee)} | Paid: ₹${fmt(paid)} | Discount: ₹${fmt(disc)} | Balance: ₹${fmt(bal)}`;
+    (s.courses || []).forEach(c=>{
+      const fee  = Number(c.totalFee || 0);
+      const paid = (c.fees || []).reduce((a,b)=>a + Number(b.amount||0),0);
+      const disc = (c.fees || []).reduce((a,b)=>a + Number(b.discount||0),0);
+      totalFee      += fee;
+      totalPaid     += paid;
+      totalDiscount += disc;
+    });
+    const totalBalance = totalFee - totalPaid - totalDiscount;
+
+    const courseNames = (s.courses || []).map(c=>c.courseName).join(', ');
+
+    nameEl.textContent = `${s.name}`;
+    metaEl.textContent = `Courses: ${courseNames || '-'} | मोबाईल: ${s.mobile} | Fee: ₹${fmt(totalFee)} | Paid: ₹${fmt(totalPaid)} | Disc: ₹${fmt(totalDiscount)} | Balance: ₹${fmt(totalBalance)}`;
 
     const li = node.querySelector('li');
+
+    // Pay: select course
     li.querySelector('.pay-btn').addEventListener('click', ()=> openPay(s.id));
+
+    // View details
     li.querySelector('.view-btn').addEventListener('click', ()=> viewStudent(s.id));
-    li.querySelector('.delete-btn').addEventListener('click', ()=>{
-      if(confirm('हा विद्यार्थी delete करायचा?')){
-        students = students.filter(x => x.id !== s.id);
-        saveAll();
-        renderStudents();
-        calcStats();
-      }
-    });
+
+    // Delete student - admin only
+    const delBtn = li.querySelector('.delete-btn');
+    if(isAdmin()){
+      delBtn.addEventListener('click', ()=>{
+        if(confirm('हा विद्यार्थी delete करायचा?')){
+          students = students.filter(x => x.id !== s.id);
+          saveStudents();
+          renderStudents();
+          calcStats();
+        }
+      });
+    } else {
+      delBtn.style.display = 'none';
+    }
 
     list.appendChild(li);
   });
 }
 
-// PAYMENTS (with discount)
-function openPay(id){
-  const s = students.find(x => x.id === id);
-  const fee  = Number(s.courseFee || 0);
-  const paid = s.fees ? s.fees.reduce((a,b)=>a + Number(b.amount||0),0) : 0;
-  const disc = s.fees ? s.fees.reduce((a,b)=>a + Number(b.discount||0),0) : 0;
-  const bal  = fee - paid - disc;
+// ---------- PAYMENTS (per course) ----------
+
+function openPay(studentId){
+  const s = students.find(x => x.id === studentId);
+  if(!s || !Array.isArray(s.courses) || s.courses.length === 0){
+    alert('या विद्यार्थ्याला कोणताही course जोडलेला नाही.');
+    return;
+  }
+
+  // build course select options with balance
+  let optionsHtml = '';
+  s.courses.forEach(c=>{
+    const fee  = Number(c.totalFee || 0);
+    const paid = (c.fees || []).reduce((a,b)=>a+Number(b.amount||0),0);
+    const disc = (c.fees || []).reduce((a,b)=>a+Number(b.discount||0),0);
+    const bal  = fee - paid - disc;
+    optionsHtml += `<option value="${c.id}">${c.courseName} (Balance: ₹${fmt(bal)})</option>`;
+  });
 
   const html = `
     <div class="modal-card" role="dialog" aria-modal="true">
       <h3>फीस भरा — ${s.name}</h3>
-      <p>Course: ${s.course}</p>
-      <p>Total Fee: ₹${fmt(fee)} | Paid: ₹${fmt(paid)} | Discount: ₹${fmt(disc)} | Balance: ₹${fmt(bal)}</p>
+      <label>Course:</label>
+      <select id="pay-course-select">
+        ${optionsHtml}
+      </select>
       <input id="pay-amount" placeholder="रक्कम (Received)">
       <input id="pay-discount" placeholder="Discount (सवलत)">
       <input id="pay-note" placeholder="टीप">
@@ -293,6 +492,7 @@ function openPay(id){
   showModal(html);
 
   $('confirm-pay').addEventListener('click', ()=>{
+    const courseId = $('pay-course-select').value;
     const amt = parseFloat($('pay-amount').value || '0');
     const dsc = parseFloat($('pay-discount').value || '0');
     const note = $('pay-note').value;
@@ -302,8 +502,14 @@ function openPay(id){
       return;
     }
 
-    if(!s.fees) s.fees = [];
-    s.fees.push({
+    const c = (s.courses || []).find(c=> String(c.id) === String(courseId));
+    if(!c){
+      alert('Course निवडण्यात त्रुटी');
+      return;
+    }
+    if(!Array.isArray(c.fees)) c.fees = [];
+
+    c.fees.push({
       id: Date.now(),
       amount: isNaN(amt) ? 0 : amt,
       discount: isNaN(dsc) ? 0 : dsc,
@@ -311,49 +517,125 @@ function openPay(id){
       date: new Date().toISOString()
     });
 
-    saveAll();
+    saveStudents();
     renderStudents();
     calcStats();
     closeModal();
-    generateReceiptPDF(s, amt, dsc, note);
+    generateReceiptPDF(s, c, amt, dsc, note);
   });
 
   $('close-modal').addEventListener('click', closeModal);
 }
 
-// View student + Reminder buttons
+// Add extra course from view
+function addCourseToStudent(student){
+  if(!isAdmin()){
+    alert('नवीन course जोडण्याची परवानगी केवळ admin ला आहे.');
+    return;
+  }
+  if(courses.length === 0){
+    alert('Courses master list रिकामी आहे.');
+    return;
+  }
+  let optionsHtml = '';
+  courses.forEach(c=>{
+    optionsHtml += `<option value="${c.name}">${c.name} — ₹${fmt(c.fee)}</option>`;
+  });
+
+  const html = `
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <h3>नवीन Course — ${student.name}</h3>
+      <select id="new-course-name">${optionsHtml}</select>
+      <input id="new-course-due" type="date" placeholder="Due date">
+      <div style="margin-top:.5rem;">
+        <button id="confirm-add-course">जतन करा</button>
+        <button id="close-modal" class="secondary">रद्द</button>
+      </div>
+    </div>
+  `;
+  showModal(html);
+
+  $('confirm-add-course').addEventListener('click', ()=>{
+    const cname = $('new-course-name').value;
+    const due   = $('new-course-due').value;
+    const master = findCourseMaster(cname);
+    const fee   = master ? Number(master.fee) : 0;
+
+    if(!student.courses) student.courses = [];
+    student.courses.push({
+      id: Date.now() + Math.random(),
+      courseName: cname,
+      totalFee: fee,
+      dueDate: due,
+      fees: []
+    });
+
+    saveStudents();
+    closeModal();
+    renderStudents();
+    calcStats();
+  });
+
+  $('close-modal').addEventListener('click', closeModal);
+}
+
+// View student + reminders + add course
 function viewStudent(id){
   const s = students.find(x => x.id === id);
-  const fee  = Number(s.courseFee || 0);
-  const paid = s.fees ? s.fees.reduce((a,b)=>a + Number(b.amount||0),0) : 0;
-  const disc = s.fees ? s.fees.reduce((a,b)=>a + Number(b.discount||0),0) : 0;
-  const bal  = fee - paid - disc;
+  if(!s) return;
 
-  const feesHtml = (s.fees || []).map(f => `
-    <li>${new Date(f.date).toLocaleString()} — ₹${fmt(f.amount)} (Disc: ₹${fmt(f.discount||0)}) — ${f.note || ''}</li>
-  `).join('') || '<li>रेकॉर्ड नाही</li>';
+  let coursesHtml = '';
+  (s.courses || []).forEach(c=>{
+    const fee  = Number(c.totalFee || 0);
+    const paid = (c.fees || []).reduce((a,b)=>a + Number(b.amount||0),0);
+    const disc = (c.fees || []).reduce((a,b)=>a + Number(b.discount||0),0);
+    const bal  = fee - paid - disc;
 
-  const msg = 
+    const feesHtml = (c.fees || []).map(f=>`
+      <li>${new Date(f.date).toLocaleString()} — ₹${fmt(f.amount)} (Disc: ₹${fmt(f.discount||0)}) — ${f.note||''}</li>
+    `).join('') || '<li>रेकॉर्ड नाही</li>';
+
+    coursesHtml += `
+      <div style="margin-bottom:.5rem;">
+        <strong>${c.courseName}</strong>
+        <div>Total: ₹${fmt(fee)} | Paid: ₹${fmt(paid)} | Disc: ₹${fmt(disc)} | Balance: ₹${fmt(bal)}</div>
+        <div>Due date: ${c.dueDate || '-'}</div>
+        <ul>${feesHtml}</ul>
+      </div>
+    `;
+  });
+
+  // Total overall
+  let totalFee=0,totalPaid=0,totalDisc=0;
+  (s.courses || []).forEach(c=>{
+    const fee  = Number(c.totalFee || 0);
+    const paid = (c.fees || []).reduce((a,b)=>a + Number(b.amount||0),0);
+    const disc = (c.fees || []).reduce((a,b)=>a + Number(b.discount||0),0);
+    totalFee += fee; totalPaid += paid; totalDisc += disc;
+  });
+  const totalBal = totalFee - totalPaid - totalDisc;
+
+  const msg =
 `Namaskar ${s.name},
 ITCT Fees Reminder
-Course: ${s.course}
-Total Fee: ₹${fmt(fee)}
-Paid: ₹${fmt(paid)}
-Discount: ₹${fmt(disc)}
-Balance: ₹${fmt(bal)}
+Total Fee: ₹${fmt(totalFee)}
+Paid: ₹${fmt(totalPaid)}
+Discount: ₹${fmt(totalDisc)}
+Balance: ₹${fmt(totalBal)}
 Please pay as early as possible.`;
 
   const html = `
     <div class="modal-card" role="dialog" aria-modal="true">
       <h3>${s.name}</h3>
-      <p>Course: ${s.course} | Fee: ₹${fmt(fee)}</p>
       <p>मोबाईल: ${s.mobile}</p>
       <p>पत्ता: ${s.address || '-'}</p>
-      <h4>फीस रेकॉर्ड</h4>
-      <ul>${feesHtml}</ul>
+      <p>Total Fee: ₹${fmt(totalFee)} | Paid: ₹${fmt(totalPaid)} | Disc: ₹${fmt(totalDisc)} | Balance: ₹${fmt(totalBal)}</p>
+      <h4>Courses</h4>
+      ${coursesHtml}
       <div style="margin-top:.5rem;">
         <button id="wa-remind">WhatsApp Reminder</button>
         <button id="sms-remind">SMS Reminder</button>
+        ${isAdmin() ? '<button id="add-course-btn-modal">Add Course</button>' : ''}
         <button id="close-modal" class="secondary">बंद</button>
       </div>
     </div>
@@ -364,23 +646,28 @@ Please pay as early as possible.`;
     const url = `https://wa.me/91${s.mobile}?text=` + encodeURIComponent(msg);
     window.open(url, '_blank');
   });
-
   $('sms-remind').addEventListener('click', ()=>{
     const url = `sms:${s.mobile}?body=` + encodeURIComponent(msg);
     window.location.href = url;
   });
-
+  if(isAdmin()){
+    $('add-course-btn-modal').addEventListener('click', ()=>{
+      closeModal();
+      addCourseToStudent(s);
+    });
+  }
   $('close-modal').addEventListener('click', closeModal);
 }
 
-// Modal helpers
+// ---------- Modal helpers ----------
+
 function showModal(html){
   const m = $('modal');
   m.innerHTML = html;
   m.classList.remove('hidden');
   m.setAttribute('aria-hidden','false');
-  const firstInput = m.querySelector('input,button,[tabindex]');
-  if(firstInput) firstInput.focus();
+  const first = m.querySelector('input,button,select,[tabindex]');
+  if(first) first.focus();
 }
 function closeModal(){
   const m = $('modal');
@@ -389,21 +676,22 @@ function closeModal(){
   m.setAttribute('aria-hidden','true');
 }
 
-// PDF Receipts
-function generateReceiptPDF(student, amount, discount, note){
-  const fee  = Number(student.courseFee || 0);
-  const paid = student.fees.reduce((a,b)=>a + Number(b.amount||0),0);
-  const disc = student.fees.reduce((a,b)=>a + Number(b.discount||0),0);
+// ---------- PDF Receipts ----------
+
+function generateReceiptPDF(student, course, amount, discount, note){
+  const fee  = Number(course.totalFee || 0);
+  const paid = (course.fees || []).reduce((a,b)=>a + Number(b.amount||0),0);
+  const disc = (course.fees || []).reduce((a,b)=>a + Number(b.discount||0),0);
   const bal  = fee - paid - disc;
   const now  = new Date().toLocaleString();
 
-  const content = 
+  const content =
 `ITCT Computer Education, Nandurbar
 
 Receipt
 
-Student: ${student.name}
-Course: ${student.course}
+Student : ${student.name}
+Course  : ${course.courseName}
 
 Total Fee : ₹${fmt(fee)}
 Received  : ₹${fmt(amount || 0)}
@@ -423,10 +711,10 @@ Date: ${now}`;
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href = url;
-    a.download = `receipt_${student.id}_${Date.now()}.pdf`;
+    a.download = `receipt_${student.id}_${course.id}_${Date.now()}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
-  } else {
+  }else{
     const w = window.open('', '_blank');
     w.document.write('<pre>'+content+'</pre>');
     w.document.close();
@@ -434,7 +722,8 @@ Date: ${now}`;
   }
 }
 
-// REPORTS
+// ---------- REPORTS ----------
+
 function renderReportCourseOptions(){
   const sel = $('report-course');
   sel.innerHTML = '<option value="">-- सर्व कोर्स --</option>';
@@ -448,25 +737,27 @@ function renderReportCourseOptions(){
 
 $('generate-payment-report').addEventListener('click', ()=>{
   const course = $('report-course').value;
-  const from = $('report-from').value;
-  const to   = $('report-to').value;
+  const from   = $('report-from').value;
+  const to     = $('report-to').value;
 
   const rows = [];
   students.forEach(s=>{
-    (s.fees || []).forEach(f=>{
-      const d = (f.date || '').slice(0,10);
-      if(course && s.course !== course) return;
-      if(from && d < from) return;
-      if(to   && d > to  ) return;
-      rows.push({
-        type: 'payment',
-        date: d,
-        student: s.name,
-        course: s.course,
-        amount: Number(f.amount||0),
-        discount: Number(f.discount||0),
-        note: f.note || '',
-        mobile: s.mobile
+    (s.courses || []).forEach(c=>{
+      (c.fees || []).forEach(f=>{
+        const d = (f.date || '').slice(0,10);
+        if(course && c.courseName !== course) return;
+        if(from && d < from) return;
+        if(to   && d > to  ) return;
+        rows.push({
+          type: 'payment',
+          date: d,
+          student: s.name,
+          course: c.courseName,
+          amount: Number(f.amount||0),
+          discount: Number(f.discount||0),
+          note: f.note || '',
+          mobile: s.mobile
+        });
       });
     });
   });
@@ -481,29 +772,66 @@ $('generate-payment-report').addEventListener('click', ()=>{
 $('generate-balance-report').addEventListener('click', ()=>{
   const course = $('report-course').value;
 
-  const rows = students
-    .filter(s => !course || s.course === course)
-    .map(s=>{
-      const fee  = Number(s.courseFee || 0);
-      const paid = s.fees ? s.fees.reduce((a,b)=>a + Number(b.amount||0),0) : 0;
-      const disc = s.fees ? s.fees.reduce((a,b)=>a + Number(b.discount||0),0) : 0;
+  const rows = [];
+  students.forEach(s=>{
+    (s.courses || []).forEach(c=>{
+      if(course && c.courseName !== course) return;
+      const fee  = Number(c.totalFee || 0);
+      const paid = (c.fees || []).reduce((a,b)=>a + Number(b.amount||0),0);
+      const disc = (c.fees || []).reduce((a,b)=>a + Number(b.discount||0),0);
       const bal  = fee - paid - disc;
-      return {
+      rows.push({
         type: 'balance',
         student: s.name,
-        course: s.course,
+        course: c.courseName,
         fee,
         paid,
         discount: disc,
         balance: bal,
         mobile: s.mobile
-      };
+      });
     });
+  });
 
   window._lastReport = rows;
   const out = rows.length
     ? rows.map(r => `<div>${r.student} (${r.course}) — Fee: ₹${fmt(r.fee)} | Paid: ₹${fmt(r.paid)} | Disc: ₹${fmt(r.discount)} | Balance: ₹${fmt(r.balance)}</div>`).join('')
     : '<div>No records</div>';
+  $('report-output').innerHTML = out;
+});
+
+// Due / Overdue report (per course)
+$('generate-due-report').addEventListener('click', ()=>{
+  const today = new Date().toISOString().slice(0,10);
+  const rows = [];
+
+  students.forEach(s=>{
+    (s.courses || []).forEach(c=>{
+      if(!c.dueDate) return;
+      const fee  = Number(c.totalFee || 0);
+      const paid = (c.fees || []).reduce((a,b)=>a + Number(b.amount||0),0);
+      const disc = (c.fees || []).reduce((a,b)=>a + Number(b.discount||0),0);
+      const bal  = fee - paid - disc;
+      if(bal <= 0) return;
+      if(c.dueDate > today) return; // not yet due
+      rows.push({
+        type: 'due',
+        student: s.name,
+        course: c.courseName,
+        dueDate: c.dueDate,
+        fee,
+        paid,
+        discount: disc,
+        balance: bal,
+        mobile: s.mobile
+      });
+    });
+  });
+
+  window._lastReport = rows;
+  const out = rows.length
+    ? rows.map(r => `<div>${r.dueDate} — ${r.student} (${r.course}) — Balance: ₹${fmt(r.balance)} | Mobile: ${r.mobile}</div>`).join('')
+    : '<div>No due / overdue records</div>';
   $('report-output').innerHTML = out;
 });
 
@@ -518,7 +846,9 @@ $('export-csv').addEventListener('click', ()=>{
   let header;
   if(rows[0].type === 'payment'){
     header = 'Date,Student,Course,Amount,Discount,Note,Mobile';
-  } else {
+  }else if(rows[0].type === 'due'){
+    header = 'DueDate,Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
+  }else{ // balance
     header = 'Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
   }
 
@@ -529,7 +859,11 @@ $('export-csv').addEventListener('click', ()=>{
       csvLines.push(
         `${r.date},"${r.student}","${r.course}",${fmt(r.amount)},${fmt(r.discount)},"${(r.note||'').replace(/"/g,'""')}",${r.mobile}`
       );
-    } else {
+    }else if(r.type === 'due'){
+      csvLines.push(
+        `${r.dueDate},"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
+      );
+    }else{
       csvLines.push(
         `"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
       );
@@ -545,27 +879,70 @@ $('export-csv').addEventListener('click', ()=>{
   URL.revokeObjectURL(url);
 });
 
-// SETTINGS - Change admin password
+// ---------- SETTINGS: Admin password + Add user ----------
+
 $('change-pass-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('केवळ admin password बदलू शकतो.');
+    return;
+  }
   const np = $('new-pass').value;
   if(!np){
     alert('New password टाका');
     return;
   }
-  admin.pass = np;
-  saveAll();
-  $('new-pass').value = '';
-  alert('Password बदलला');
+  const adminUser = users.find(u=>u.username === 'admin' && u.role === 'admin');
+  if(adminUser){
+    adminUser.password = np;
+    saveUsers();
+    $('new-pass').value = '';
+    alert('Admin password बदलला.');
+  }else{
+    alert('"admin" user सापडला नाही.');
+  }
 });
 
-// BACKUP / RESTORE
+$('add-user-btn').addEventListener('click', ()=>{
+  if(!isAdmin()){
+    alert('नवीन user add करण्याची परवानगी केवळ admin ला आहे.');
+    return;
+  }
+  const uname = $('new-user-username').value.trim();
+  const pass  = $('new-user-password').value;
+  const role  = $('new-user-role').value;
+
+  if(!uname || !pass){
+    alert('Username आणि Password टाका');
+    return;
+  }
+  if(users.some(u=>u.username === uname)){
+    alert('हा username आधीपासून अस्तित्वात आहे.');
+    return;
+  }
+
+  users.push({
+    id: Date.now(),
+    username: uname,
+    password: pass,
+    role
+  });
+  saveUsers();
+
+  $('new-user-username').value = '';
+  $('new-user-password').value = '';
+  $('new-user-role').value = 'data-entry';
+  alert('User जतन झाला.');
+});
+
+// ---------- BACKUP / RESTORE ----------
+
 function exportBackup(){
-  const data = { students, courses, admin };
+  const data = { students, courses, users };
   const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = 'itct-fees-backup.json';
+  a.download = 'itct-fees-backup-v2.json';
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -577,28 +954,32 @@ function handleImport(e){
   reader.onload = ()=>{
     try{
       const data = JSON.parse(reader.result);
-      if(data.students && data.courses){
+      if(data.students && data.courses && data.users){
         students = data.students;
         courses  = data.courses;
-        admin    = data.admin || admin;
-        saveAll();
+        users    = data.users;
+        saveStudents();
+        saveCourses();
+        saveUsers();
         alert('Backup import पूर्ण');
         renderCourses();
         renderCourseSelect();
         renderStudents();
         renderReportCourseOptions();
         calcStats();
-      } else {
+      }else{
         alert('अवैध backup फाईल');
       }
-    } catch(err){
+    }catch(err){
       alert('फाईल वाचता आली नाही');
     }
   };
   reader.readAsText(f);
 }
 
-// Initial dashboard update if already logged (typically not, but safe)
+// ---------- INIT ----------
+
 document.addEventListener('DOMContentLoaded', ()=>{
-  // nothing special; login नंतर सगळं run होईल
+  loadData();
+  // login नंतर बाकी सगळे चालेल
 });
