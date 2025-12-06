@@ -22,13 +22,20 @@
   <main>
     <!-- LOGIN -->
     <section id="login-section" class="card">
-      <h2>Admin Login</h2>
-      <input id="admin-pass" type="password" placeholder="Password (default: 1234)" autofocus>
-      <button id="login-btn">लॉगिन करा</button>
+      <h2>Login</h2>
+      <input id="login-username" placeholder="Username (default: admin)">
+      <input id="login-password" type="password" placeholder="Password (default: 1234)">
+      <button id="login-btn">Login</button>
     </section>
 
     <!-- APP MAIN -->
     <section id="app-section" class="hidden">
+      <!-- Logged-in user info -->
+      <div id="user-bar" class="card user-bar">
+        Logged in as: <span id="current-user-name"></span>
+        (<span id="current-user-role"></span>)
+      </div>
+
       <!-- Toolbar -->
       <div class="toolbar">
         <button id="dashboard-btn">Dashboard</button>
@@ -69,9 +76,12 @@
         <input id="dob" placeholder="DOB (YYYY-MM-DD)">
         <input id="age" placeholder="वय">
         <input id="address" placeholder="पत्ता">
-        <select id="course-select"></select>
         <input id="mobile" placeholder="मोबाईल *">
         <input id="idproof" placeholder="ID Proof (आधार/पॅन)">
+        <hr>
+        <h4>पहिला Course</h4>
+        <select id="course-select"></select>
+        <input id="course-duedate" type="date" placeholder="Due date">
         <button id="save-student-btn">जतन करा</button>
         <button id="cancel-student-btn">रद्द करा</button>
       </section>
@@ -79,7 +89,7 @@
       <!-- Students list -->
       <section id="students-list" class="card">
         <h3>विद्यार्थी यादी</h3>
-        <input id="search" placeholder="शोध... नाव / कोर्स">
+        <input id="search" placeholder="शोध... नाव / कोर्स / मोबाईल">
         <ul id="list"></ul>
       </section>
 
@@ -96,6 +106,7 @@
         <div class="row">
           <button id="generate-payment-report">Payment report</button>
           <button id="generate-balance-report">Balance report</button>
+          <button id="generate-due-report">Due / Overdue report</button>
           <button id="export-csv">Export CSV (Excel)</button>
         </div>
         <div id="report-output"></div>
@@ -104,10 +115,23 @@
       <!-- Settings -->
       <section id="settings-section" class="card hidden">
         <h3>Settings</h3>
-        <div>
-          <label>Change Admin Password</label>
-          <input id="new-pass" type="password" placeholder="New password">
+
+        <div class="settings-block">
+          <h4>Change Admin Password</h4>
+          <input id="new-pass" type="password" placeholder="New admin password">
           <button id="change-pass-btn">Change Password</button>
+        </div>
+
+        <div class="settings-block">
+          <h4>Add Data Entry User</h4>
+          <input id="new-user-username" placeholder="Username">
+          <input id="new-user-password" type="password" placeholder="Password">
+          <select id="new-user-role">
+            <option value="data-entry">Data Entry</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button id="add-user-btn">Add User</button>
+          <p class="note">टीप: Users localStorage मध्ये save होतात. फक्त Admin user नवीन users add करू शकतो.</p>
         </div>
       </section>
 
@@ -124,7 +148,7 @@
       <div class="actions">
         <button class="pay-btn">फीस भरा</button>
         <button class="view-btn">पहा</button>
-        <button class="delete-btn">हटवा</button>
+        <button class="delete-btn admin-only">हटवा</button>
       </div>
     </li>
   </template>
