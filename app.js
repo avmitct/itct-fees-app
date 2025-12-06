@@ -21,6 +21,27 @@ const DEFAULT_ADMIN = {
 
 const $ = id => document.getElementById(id);
 const { jsPDF } = window.jspdf || {};
+// ---------- AGE CALCULATION HELPERS ----------
+
+function calcAgeFromDob(dobStr){
+  if(!dobStr) return '';
+  const d = new Date(dobStr);
+  if(isNaN(d.getTime())) return '';
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : '';
+}
+
+function updateAgeFromDob(){
+  const dobVal = $('dob').value;
+  const age = calcAgeFromDob(dobVal);
+  $('age').value = age !== '' ? String(age) : '';
+}
+
 
 let students = [];
 let courses  = [];
@@ -979,5 +1000,11 @@ function handleImport(e){
 
 document.addEventListener('DOMContentLoaded', ()=>{
   loadData();
-  // login नंतर बाकी सगळे चालेल
+
+  // Auto-calc age on DOB entry
+  const dobInput = $('dob');
+  if (dobInput){
+    dobInput.addEventListener('change', updateAgeFromDob);
+    dobInput.addEventListener('blur', updateAgeFromDob);
+  }
 });
