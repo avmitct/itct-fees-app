@@ -138,6 +138,26 @@ button.secondary{
   font-size:0.9rem;
 }
 
+/* settings blocks */
+.settings-block{
+  margin-top:1rem;
+  padding-top:.5rem;
+  border-top:1px dashed #ddd;
+}
+.settings-block h4{
+  margin:.2rem 0 .5rem;
+}
+.note{
+  font-size:0.8rem;
+  color:#777;
+}
+
+/* User bar */
+.user-bar{
+  padding:.5rem .75rem;
+  font-size:0.9rem;
+}
+
 /* Responsive */
 @media(max-width:520px){
   .header-inner{
