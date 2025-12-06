@@ -17,12 +17,11 @@
         <div class="location">Nandurbar</div>
       </div>
     </div>
-    <!-- उपशीर्षक -->
     <p class="sub">Admission System (Offline + Backup)</p>
   </header>
 
   <main>
-    <!-- ================= LOGIN SECTION ================= -->
+    <!-- ========== LOGIN ========== -->
     <section id="login-section" class="card">
       <h2>Login</h2>
       <input id="login-username" placeholder="Username">
@@ -30,9 +29,9 @@
       <button id="login-btn">Login</button>
     </section>
 
-    <!-- ================= MAIN APP SECTION ================= -->
+    <!-- ========== MAIN APP ========== -->
     <section id="app-section" class="hidden">
-      <!-- Logged in user info -->
+      <!-- User bar -->
       <div id="user-bar" class="card user-bar">
         Logged in as: <span id="current-user-name"></span>
         (<span id="current-user-role"></span>)
@@ -50,7 +49,7 @@
         <input id="file-input" type="file" accept=".json" style="display:none;">
       </div>
 
-      <!-- ===== Dashboard ===== -->
+      <!-- Dashboard -->
       <section id="dashboard-section" class="card">
         <h3>Dashboard</h3>
         <div id="dash-total-students">Total students: 0</div>
@@ -60,7 +59,7 @@
         <div id="dash-total-balance">Total balance: ₹0</div>
       </section>
 
-      <!-- ===== Courses Management ===== -->
+      <!-- Courses -->
       <section id="courses-section" class="card hidden">
         <h3>Courses</h3>
         <div class="row">
@@ -71,14 +70,15 @@
         <ul id="courses-list"></ul>
       </section>
 
-      <!-- ===== Student Form ===== -->
+      <!-- Student form -->
       <section id="student-form" class="card hidden">
         <h3>विद्यार्थ्याची माहिती</h3>
         <input id="name" placeholder="नाव *">
         <input id="dob" placeholder="DOB (YYYY-MM-DD)">
         <input id="age" placeholder="वय">
         <input id="address" placeholder="पत्ता">
-        <input id="mobile" placeholder="मोबाईल *">
+        <input id="mobile" placeholder="मोबाईल 1 *" maxlength="10">
+        <input id="mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
         <hr>
         <h4>पहिला Course</h4>
         <select id="course-select"></select>
@@ -89,14 +89,14 @@
         </div>
       </section>
 
-      <!-- ===== Students List ===== -->
+      <!-- Students list -->
       <section id="students-list" class="card">
         <h3>विद्यार्थी यादी</h3>
         <input id="search" placeholder="शोध... नाव / कोर्स / मोबाईल">
         <ul id="list"></ul>
       </section>
 
-      <!-- ===== Reports ===== -->
+      <!-- Reports -->
       <section id="reports-section" class="card hidden">
         <h3>Reports</h3>
         <div class="row">
@@ -115,7 +115,7 @@
         <div id="report-output"></div>
       </section>
 
-      <!-- ===== Settings ===== -->
+      <!-- Settings -->
       <section id="settings-section" class="card hidden">
         <h3>Settings</h3>
 
@@ -126,7 +126,7 @@
           <button id="change-pass-btn">Change Password</button>
         </div>
 
-        <!-- Add User (Admin / Data Entry) -->
+        <!-- Add User -->
         <div class="settings-block">
           <h4>Add User</h4>
           <input id="new-user-username" placeholder="Username">
@@ -139,7 +139,7 @@
           <p class="note">टीप: Users localStorage मध्ये save होतात. फक्त Admin user नवीन users add करू शकतो.</p>
         </div>
 
-        <!-- User List (Admin only) -->
+        <!-- User List -->
         <div class="settings-block">
           <h4>User List</h4>
           <ul id="users-list"></ul>
@@ -149,7 +149,7 @@
     </section>
   </main>
 
-  <!-- ===== Template for student list item ===== -->
+  <!-- Template for student item -->
   <template id="student-item-tpl">
     <li class="student-item">
       <div class="info">
@@ -164,10 +164,10 @@
     </li>
   </template>
 
-  <!-- ===== Modal overlay ===== -->
+  <!-- Modal -->
   <div id="modal" class="hidden" aria-hidden="true"></div>
 
-  <!-- jsPDF for PDF (जर पुढे गरज नसेल तर script काढू शकतो) -->
+  <!-- jsPDF (आता वापरत नाही, पण ठेवला तरी चालेल) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
   <script>
