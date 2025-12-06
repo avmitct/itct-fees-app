@@ -338,14 +338,13 @@ $('cancel-student-btn').addEventListener('click', ()=>{
 });
 
 $('save-student-btn').addEventListener('click', ()=>{
-  const name    = $('name').value.trim();
-  const dob     = $('dob').value.trim();
-  const age     = $('age').value.trim();
-  const address = $('address').value.trim();
-  const mobile  = $('mobile').value.trim();
-  const idproof = $('idproof').value.trim();
-  const courseName = $('course-select').value;
-  const dueDate    = $('course-duedate').value; // YYYY-MM-DD
+const name    = $('name').value.trim();
+const dob     = $('dob').value.trim();
+const age     = $('age').value.trim();
+const address = $('address').value.trim();
+const mobile  = $('mobile').value.trim();
+const courseName = $('course-select').value;
+const dueDate    = $('course-duedate').value; // YYYY-MM-DD
 
   if(!name || !mobile || !courseName){
     alert('नाव, मोबाईल आणि course निवडणे आवश्यक आहे');
@@ -364,15 +363,14 @@ $('save-student-btn').addEventListener('click', ()=>{
   };
 
   const student = {
-    id: Date.now(),
-    name,
-    dob,
-    age,
-    address,
-    mobile,
-    idproof,
-    courses: [courseObj]
-  };
+  id: Date.now(),
+  name,
+  dob,
+  age,
+  address,
+  mobile,
+  courses: [courseObj]
+};
 
   students.unshift(student);
   saveStudents();
@@ -383,7 +381,7 @@ $('save-student-btn').addEventListener('click', ()=>{
 });
 
 function clearStudentForm(){
-  ['name','dob','age','address','mobile','idproof','course-duedate']
+ ['name','dob','age','address','mobile','course-duedate']
     .forEach(id => $(id).value = '');
 }
 
