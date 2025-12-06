@@ -231,8 +231,14 @@ function afterLogin(){
   renderStudents();
   renderReportCourseOptions();
   calcStats();
+   if (isAdmin()) {
 
   showOnly('dashboard-section');
+      renderUsersList();    // 👉 admin login झाल्यावर user list भरा
+  } else {
+    showOnly('students-list');      // data-entry ला थेट students list
+  }
+}
 }
 
 function applyRoleUI(){
@@ -305,6 +311,7 @@ $('settings-btn').addEventListener('click', ()=>{
     return;
   }
   showOnly('settings-section');
+  renderUsersList();   // 👉 settings उघडल्यावर list refresh
 });
 $('backup-btn').addEventListener('click', ()=>{
   if(!isAdmin()){
@@ -986,6 +993,7 @@ $('add-user-btn').addEventListener('click', ()=>{
   $('new-user-username').value = '';
   $('new-user-password').value = '';
   $('new-user-role').value = 'data-entry';
+  renderUsersList();
   alert('User जतन झाला.');
 });
 
