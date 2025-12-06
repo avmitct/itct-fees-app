@@ -145,6 +145,42 @@ function findCourseMaster(name){
 function isAdmin(){
   return currentUser && currentUser.role === 'admin';
 }
+// ---------- USER LIST (ADMIN) ----------
+
+function renderUsersList(){
+  if (!isAdmin()) return;          // फक्त admin साठी
+
+  const list = $('users-list');
+  if (!list) return;
+
+  list.innerHTML = '';
+
+  users.forEach(u => {
+    const li = document.createElement('li');
+    li.textContent = `${u.username} (${u.role})`;
+
+    // Main admin ला delete करू देऊ नये
+    if (u.username !== 'admin' || u.role !== 'admin') {
+      const btn = document.createElement('button');
+      btn.textContent = 'Delete';
+      btn.className = 'secondary';
+      btn.style.marginLeft = '0.5rem';
+
+      btn.addEventListener('click', () => {
+        if (confirm(`User "${u.username}" delete करायचा?`)) {
+          users = users.filter(x => x.id !== u.id);
+          saveUsers();
+          renderUsersList();
+        }
+      });
+
+      li.appendChild(btn);
+    }
+
+    list.appendChild(li);
+  });
+}
+
 function showOnly(sectionId){
   [
     'dashboard-section',
