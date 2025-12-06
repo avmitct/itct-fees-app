@@ -169,3 +169,13 @@ button.secondary{
     height:56px;
   }
 }
+.user-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.user-bar button{
+  padding:0.35rem 0.75rem;
+  font-size:0.85rem;
+}
