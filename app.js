@@ -228,6 +228,34 @@ function afterLogin(){
     showOnly('students-list'); // data-entry ला थेट यादी
   }
 }
+// ---------- LOGOUT ----------
+
+const logoutBtn = $('logout-btn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', () => {
+    // currentUser reset
+    currentUser = null;
+
+    // Modal बंद करा (असल्यास)
+    const m = $('modal');
+    if (m) {
+      m.classList.add('hidden');
+      m.innerHTML = '';
+      m.setAttribute('aria-hidden', 'true');
+    }
+
+    // App section hide, login section show
+    $('app-section').classList.add('hidden');
+    $('login-section').classList.remove('hidden');
+
+    // login fields clear करा
+    $('login-username').value = '';
+    $('login-password').value = '';
+
+    // optional: focus on username
+    $('login-username').focus();
+  });
+}
 
 function applyRoleUI(){
   const adminButtons = [
