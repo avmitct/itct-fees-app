@@ -263,6 +263,11 @@ $('dashboard-btn').addEventListener('click', () => {
   showOnly('dashboard-section');
   calcStats();
 });
+$('students-list-btn').addEventListener('click', () => {
+  // सर्व users (admin + data-entry) साठी चालेल
+  showOnly('students-list');
+  renderStudents();   // ताज्या डेटानुसार यादी refresh
+});
 
 $('manage-courses-btn').addEventListener('click', () => {
   if (!isAdmin()) {
