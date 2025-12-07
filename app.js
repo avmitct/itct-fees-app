@@ -283,7 +283,11 @@ $('add-student-btn').addEventListener('click', () => {
   renderCourseSelect();
   clearStudentForm();
 });
-
+// 👇 नवीन Student List बटणाचा handler
+$('students-list-btn').addEventListener('click', () => {
+  showOnly('students-list');
+  renderStudents();   // सर्व students list refresh
+});
 $('reports-btn').addEventListener('click', () => {
   showOnly('reports-section');
   renderReportCourseOptions();
