@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ITCT Admission System</title>
+  <title>ITCT Admission System (Cloud)</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -17,7 +17,7 @@
         <div class="location">Nandurbar</div>
       </div>
     </div>
-    <p class="sub">प्रवेश शुल्क प्रणाली</p>
+    <p class="sub">Admission System – Supabase Cloud</p>
   </header>
 
   <main>
@@ -27,27 +27,30 @@
       <input id="login-username" placeholder="Username">
       <input id="login-password" type="password" placeholder="Password">
       <button id="login-btn">Login</button>
+      <p class="note">
+        पहिल्यांदा वापरताना default user आपोआप तयार होईल:<br>
+        Username: <strong>admin</strong> &nbsp; Password: <strong>1234</strong>
+      </p>
     </section>
 
     <!-- ========== MAIN APP ========== -->
     <section id="app-section" class="hidden">
       <!-- User bar -->
       <div id="user-bar" class="card user-bar">
-        Logged in as: <span id="current-user-name"></span>
-        (<span id="current-user-role"></span>)
+        <div>
+          Logged in as: <span id="current-user-name"></span>
+          (<span id="current-user-role"></span>)
+        </div>
+        <button id="logout-btn" class="secondary">Logout</button>
       </div>
-<button id="logout-btn" class="secondary">Logout</button>
-</div>
+
       <!-- Toolbar -->
       <div class="toolbar">
         <button id="dashboard-btn">Dashboard</button>
         <button id="manage-courses-btn">Courses</button>
         <button id="add-student-btn">नवीन विद्यार्थी</button>
         <button id="reports-btn">Reports</button>
-        <button id="backup-btn">Backup Export</button>
-        <button id="restore-btn">Backup Import</button>
         <button id="settings-btn">Settings</button>
-        <input id="file-input" type="file" accept=".json" style="display:none;">
       </div>
 
       <!-- Dashboard -->
@@ -81,7 +84,7 @@
         <input id="mobile" placeholder="मोबाईल 1 *" maxlength="10">
         <input id="mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
         <hr>
-        <h4>पहिला Course</h4>
+        <h4>Course माहिती</h4>
         <select id="course-select"></select>
         <input id="course-duedate" type="date" placeholder="Due date">
         <div class="row" style="margin-top:.5rem;">
@@ -137,7 +140,7 @@
             <option value="admin">Admin</option>
           </select>
           <button id="add-user-btn">Add User</button>
-          <p class="note">टीप: Users localStorage मध्ये save होतात. फक्त Admin user नवीन users add करू शकतो.</p>
+          <p class="note">टीप: Users Supabase database मध्ये जतन होतात. फक्त Admin user नवीन users add करू शकतो.</p>
         </div>
 
         <!-- User List -->
@@ -168,13 +171,16 @@
   <!-- Modal -->
   <div id="modal" class="hidden" aria-hidden="true"></div>
 
-  <!-- jsPDF (आता वापरत नाही, पण ठेवला तरी चालेल) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="app.js"></script>
+  <!-- Supabase JS (UMD) + client setup -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.48.0/dist/umd/supabase.js"></script>
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
-    }
+    // 👉 इथे तुमच्या Supabase चा URL आणि anon key टाका
+    const SUPABASE_URL  = "https://lbepbdnoowbestqhfupm.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZXBiZG5vb3diZXN0cWhmdXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwODMxMjcsImV4cCI6MjA4MDY1OTEyN30.wH-fEGF2Ni1iUkxmvzTy2A6Y5kTUmBUMPJKQMCxcYbE";
+
+    window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   </script>
+
+  <script src="app.js"></script>
 </body>
 </html>
