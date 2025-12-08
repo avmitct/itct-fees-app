@@ -874,6 +874,63 @@ $('generate-due-report').addEventListener('click', () => {
     : '<div>No due / overdue records</div>';
   $('report-output').innerHTML = out;
 });
+// ---------- BACKUP HELPERS ----------
+
+function downloadCSV(filename, rows) {
+  if (!rows || !rows.length) {
+    alert('No data found to backup.');
+    return;
+  }
+
+  const headers = Object.keys(rows[0]).join(',');
+  const dataLines = rows.map(row =>
+    Object.values(row)
+      .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
+      .join(',')
+  );
+  const csv = headers + '\n' + dataLines.join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Students backup
+$('backup-students').addEventListener('click', async () => {
+  const { data, error } = await supa.from('students').select('*');
+  if (error) {
+    console.error(error);
+    alert('Error fetching students for backup.');
+    return;
+  }
+  downloadCSV('students_backup.csv', data);
+});
+
+// Fees backup
+$('backup-fees').addEventListener('click', async () => {
+  const { data, error } = await supa.from('fees').select('*');
+  if (error) {
+    console.error(error);
+    alert('Error fetching fees for backup.');
+    return;
+  }
+  downloadCSV('fees_backup.csv', data);
+});
+
+// Courses backup
+$('backup-courses').addEventListener('click', async () => {
+  const { data, error } = await supa.from('courses').select('*');
+  if (error) {
+    console.error(error);
+    alert('Error fetching courses for backup.');
+    return;
+  }
+  downloadCSV('courses_backup.csv', data);
+});
 
 // CSV export
 $('export-csv').addEventListener('click', () => {
