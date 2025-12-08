@@ -67,7 +67,8 @@ function showOnly(sectionId) {
     'student-form',
     'students-list',
     'reports-section',
-    'settings-section'
+    'settings-section',
+    'backup-section'              // 👈 नवं section
   ].forEach(id => {
     const el = $(id);
     if (!el) return;
@@ -75,6 +76,7 @@ function showOnly(sectionId) {
     else el.classList.add('hidden');
   });
 }
+
 
 function studentFees(studentId) {
   return fees.filter(f => f.student_id === studentId);
