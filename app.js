@@ -231,6 +231,22 @@ if (logoutBtn) {
     $('login-username').focus();
   });
 }
+function downloadCSV(filename, rows) {
+  if (!rows || rows.length === 0) return alert("No data found!");
+
+  const headers = Object.keys(rows[0]).join(",");
+  const data = rows
+    .map(row => Object.values(row).map(v => `"${(v ?? "").toString().replace(/"/g,'""')}"`).join(","))
+    .join("\n");
+
+  const csv = headers + "\n" + data;
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
 
 // ---------- DASHBOARD ----------
 
@@ -255,6 +271,10 @@ function calcStats() {
 }
 
 // Toolbar navigation
+$('backup-btn').addEventListener('click', () => {
+  showOnly('backup-section');
+});
+
 $('dashboard-btn').addEventListener('click', () => {
   if (!isAdmin()) {
     alert('Dashboard फक्त admin साठी आहे.');
@@ -300,6 +320,22 @@ $('settings-btn').addEventListener('click', () => {
   }
   showOnly('settings-section');
   renderUsersList();
+});
+$('backup-students').addEventListener('click', async () => {
+  const { data, error } = await supa.from('students').select('*');
+  if (error) return alert("Error fetching students");
+  downloadCSV("students_backup.csv", data);
+});
+$('backup-fees').addEventListener('click', async () => {
+  const { data, error } = await supa.from('fees').select('*');
+  if (error) return alert("Error fetching fees");
+  downloadCSV("fees_backup.csv", data);
+});
+
+$('backup-courses').addEventListener('click', async () => {
+  const { data, error } = await supa.from('courses').select('*');
+  if (error) return alert("Error fetching courses");
+  downloadCSV("courses_backup.csv", data);
 });
 
 // ---------- COURSES ----------
