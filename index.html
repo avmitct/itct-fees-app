@@ -45,6 +45,7 @@
         <button id="dashboard-btn">Dashboard</button>
         <button id="manage-courses-btn">Courses</button>
         <button id="add-student-btn">नवीन विद्यार्थी</button>
+        <button id="enquiry-btn">Enquiry</button>
         <button id="students-list-btn">Student List</button>
         <button id="reports-btn">Reports</button>
         <button id="settings-btn">Settings</button>
@@ -91,6 +92,27 @@
         </div>
       </section>
 
+      <!-- Enquiry section -->
+      <section id="enquiry-section" class="card hidden">
+        <h3>Enquiry</h3>
+        <div class="enq-form">
+          <input id="enq-name" placeholder="नाव *">
+          <input id="enq-dob" type="date" placeholder="DOB">
+          <input id="enq-age" placeholder="वय" readonly>
+          <input id="enq-mobile" placeholder="मोबाईल 1 *" maxlength="10">
+          <input id="enq-mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
+          <select id="enq-course-select"></select>
+          <div class="row" style="margin-top:.5rem;">
+            <button id="save-enquiry-btn">Enquiry Save करा</button>
+            <button id="clear-enquiry-btn" class="secondary">Clear</button>
+          </div>
+        </div>
+        <hr>
+        <h4>Enquiry List</h4>
+        <input id="enq-search" placeholder="शोध... नाव / मोबाईल / कोर्स">
+        <ul id="enquiry-list"></ul>
+      </section>
+
       <!-- Students list -->
       <section id="students-list" class="card">
         <h3>विद्यार्थी यादी</h3>
@@ -112,6 +134,7 @@
           <button id="generate-payment-report">Payment report</button>
           <button id="generate-balance-report">Balance report</button>
           <button id="generate-due-report">Due / Overdue report</button>
+          <button id="generate-enquiry-report">Enquiry report</button>
           <button id="export-csv">Export CSV (Excel)</button>
         </div>
         <div id="report-output"></div>
@@ -183,10 +206,8 @@
   <!-- Supabase JS (UMD) + client setup -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.48.0/dist/umd/supabase.js"></script>
   <script>
-    // 👉 इथे तुमच्या Supabase चा URL आणि anon key आधीच सेट आहेत
     const SUPABASE_URL  = "https://lbepbdnoowbestqhfupm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZXBiZG5vb3diZXN0cWhmdXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwODMxMjcsImV4cCI6MjA4MDY1OTEyN30.wH-fEGF2Ni1iUkxmvzTy2A6Y5kTUmBUMPJKQMCxcYbE";
-
     window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   </script>
 
