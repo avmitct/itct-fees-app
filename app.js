@@ -1,17 +1,17 @@
-// ITCT Admission System - Supabase Cloud Version + Backup
-// --------------------------------------------------------
-// Tables in Supabase:
+// ITCT Admission System - Supabase Cloud Version
+// -----------------------------------------------
+// Tables required (see Supabase):
 // users(id uuid, username text unique, password text, role text)
 // courses(id uuid, name text unique, fee numeric)
 // students(id uuid, name text, dob date, age int, address text,
-//          mobile text, mobile2 text, course_name text, total_fee numeric, due_date date, created_by text)
+//          mobile text, mobile2 text, course_name text, total_fee numeric, due_date date)
 // fees(id uuid, student_id uuid, amount numeric, discount numeric,
 //      note text, date timestamptz, receipt_no text, receipt_date date)
 
 const supa = window.supabaseClient;
 const $ = id => document.getElementById(id);
 
-// State
+// State in memory
 let users = [];
 let courses = [];
 let students = [];
@@ -103,6 +103,7 @@ async function loadUsers() {
     return;
   }
   if (!data || data.length === 0) {
+    // Create default admin
     const { data: created, error: err2 } = await supa
       .from('users')
       .insert({ username: 'admin', password: '1234', role: 'admin' })
@@ -194,13 +195,13 @@ function afterLogin() {
   }
 }
 
-// ---------- ROLE UI (admin vs data-entry) ----------
+// ---------- ROLE-BASED UI ----------
 
 function applyRoleUI() {
   const adminButtons = [
     'manage-courses-btn',
     'settings-btn',
-    'backup-btn'
+    'backup-btn'      // Backup फक्त admin साठी
   ];
   adminButtons.forEach(id => {
     const el = $(id);
@@ -251,13 +252,21 @@ function calcStats() {
   const totalBalance = totalFee - totalPaid - totalDiscount;
 
   $('dash-total-students').textContent = 'Total students: ' + totalStudents;
-  $('dash-total-fee').textContent      = 'Total course fee: ₹' + fmt(totalFee);
-  $('dash-total-paid').textContent     = 'Total paid: ₹' + fmt(totalPaid);
+  $('dash-total-fee').textContent = 'Total course fee: ₹' + fmt(totalFee);
+  $('dash-total-paid').textContent = 'Total paid: ₹' + fmt(totalPaid);
   $('dash-total-discount').textContent = 'Total discount: ₹' + fmt(totalDiscount);
-  $('dash-total-balance').textContent  = 'Total balance: ₹' + fmt(totalBalance);
+  $('dash-total-balance').textContent = 'Total balance: ₹' + fmt(totalBalance);
 }
 
 // ---------- TOOLBAR NAVIGATION ----------
+
+$('backup-btn').addEventListener('click', () => {
+  if (!isAdmin()) {
+    alert('Backup option फक्त admin साठी आहे.');
+    return;
+  }
+  showOnly('backup-section');
+});
 
 $('dashboard-btn').addEventListener('click', () => {
   if (!isAdmin()) {
@@ -266,6 +275,11 @@ $('dashboard-btn').addEventListener('click', () => {
   }
   showOnly('dashboard-section');
   calcStats();
+});
+
+$('students-list-btn').addEventListener('click', () => {
+  showOnly('students-list');
+  renderStudents();
 });
 
 $('manage-courses-btn').addEventListener('click', () => {
@@ -283,11 +297,6 @@ $('add-student-btn').addEventListener('click', () => {
   clearStudentForm();
 });
 
-$('students-list-btn').addEventListener('click', () => {
-  showOnly('students-list');
-  renderStudents();
-});
-
 $('reports-btn').addEventListener('click', () => {
   showOnly('reports-section');
   renderReportCourseOptions();
@@ -300,14 +309,6 @@ $('settings-btn').addEventListener('click', () => {
   }
   showOnly('settings-section');
   renderUsersList();
-});
-
-$('backup-btn').addEventListener('click', () => {
-  if (!isAdmin()) {
-    alert('Backup option फक्त admin साठी आहे.');
-    return;
-  }
-  showOnly('backup-section');
 });
 
 // ---------- COURSES ----------
@@ -430,8 +431,7 @@ $('save-student-btn').addEventListener('click', async () => {
     mobile2: mobCheck.m2 || '',
     course_name: courseName,
     total_fee: totalFee,
-    due_date: dueDate || null,
-    created_by: currentUser ? currentUser.username : null
+    due_date: dueDate || null
   };
 
   const { data, error } = await supa
@@ -484,17 +484,10 @@ function renderStudents(filter = '') {
     const { totalFee, paid, disc, balance } = studentTotals(s);
 
     nameEl.textContent = s.name;
-
-    let metaText =
+    metaEl.textContent =
       `Course: ${s.course_name || '-'} | ` +
       `मोबाईल1: ${s.mobile || '-'} | मोबाईल2: ${s.mobile2 || '-'} | ` +
       `Fee: ₹${fmt(totalFee)} | Paid: ₹${fmt(paid)} | Disc: ₹${fmt(disc)} | Balance: ₹${fmt(balance)}`;
-
-    if (isAdmin()) {
-      metaText += ` | Created by: ${s.created_by || '-'}`;
-    }
-
-    metaEl.textContent = metaText;
 
     const li = node.querySelector('li');
     li.querySelector('.pay-btn').addEventListener('click', () => openPay(s.id));
@@ -504,6 +497,7 @@ function renderStudents(filter = '') {
     if (isAdmin()) {
       delBtn.addEventListener('click', async () => {
         if (!confirm('हा विद्यार्थी delete करायचा?')) return;
+        // delete fees first
         const { error: fErr } = await supa.from('fees').delete().eq('student_id', s.id);
         if (fErr) {
           alert('Fees delete करताना त्रुटी');
@@ -616,15 +610,16 @@ async function viewStudent(id) {
   `).join('');
   if (!feesHtml) feesHtml = '<li>रेकॉर्ड नाही</li>';
 
-  const msg =
-`Namaskar ${s.name},
-ITCT Fees Reminder
-Course: ${s.course_name || '-'}
-Total Fee: ₹${fmt(totalFee)}
-Paid: ₹${fmt(paid)}
-Discount: ₹${fmt(disc)}
-Balance: ₹${fmt(balance)}
-Please pay as early as possible.`;
+  const msg = [
+    `Namaskar ${s.name},`,
+    'ITCT Fees Reminder',
+    `Course: ${s.course_name || '-'}`,
+    `Total Fee: ₹${fmt(totalFee)}`,
+    `Paid: ₹${fmt(paid)}`,
+    `Discount: ₹${fmt(disc)}`,
+    `Balance: ₹${fmt(balance)}`,
+    'Please pay as early as possible.'
+  ].join('\n');
 
   const pm = primaryMobile(s);
 
@@ -709,6 +704,7 @@ window.editFee = async function (feeId) {
       console.error(error);
       return;
     }
+    // update in memory
     const idx = fees.findIndex(x => x.id === f.id);
     if (idx !== -1) fees[idx] = data;
 
@@ -739,7 +735,7 @@ function closeModal() {
   m.setAttribute('aria-hidden', 'true');
 }
 
-// ---------- REPORTS ----------
+// ---------- Reports ----------
 
 function renderReportCourseOptions() {
   const sel = $('report-course');
@@ -851,7 +847,77 @@ $('generate-due-report').addEventListener('click', () => {
   $('report-output').innerHTML = out;
 });
 
-// CSV export for reports
+// ---------- BACKUP HELPERS ----------
+
+function downloadCSV(filename, rows) {
+  if (!rows || !rows.length) {
+    alert('No data found to backup.');
+    return;
+  }
+
+  const headers = Object.keys(rows[0]).join(',');
+  const dataLines = rows.map(row =>
+    Object.values(row)
+      .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
+      .join(',')
+  );
+  const csv = headers + '\n' + dataLines.join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Students backup
+$('backup-students').addEventListener('click', async () => {
+  if (!isAdmin()) {
+    alert('Backup फक्त admin साठी आहे.');
+    return;
+  }
+  const { data, error } = await supa.from('students').select('*');
+  if (error) {
+    console.error(error);
+    alert('Error fetching students for backup.');
+    return;
+  }
+  downloadCSV('students_backup.csv', data);
+});
+
+// Fees backup
+$('backup-fees').addEventListener('click', async () => {
+  if (!isAdmin()) {
+    alert('Backup फक्त admin साठी आहे.');
+    return;
+  }
+  const { data, error } = await supa.from('fees').select('*');
+  if (error) {
+    console.error(error);
+    alert('Error fetching fees for backup.');
+    return;
+  }
+  downloadCSV('fees_backup.csv', data);
+});
+
+// Courses backup
+$('backup-courses').addEventListener('click', async () => {
+  if (!isAdmin()) {
+    alert('Backup फक्त admin साठी आहे.');
+    return;
+  }
+  const { data, error } = await supa.from('courses').select('*');
+  if (error) {
+    console.error(error);
+    alert('Error fetching courses for backup.');
+    return;
+  }
+  downloadCSV('courses_backup.csv', data);
+});
+
+// CSV export (reports)
 $('export-csv').addEventListener('click', () => {
   const rows = window._lastReport || [];
   if (!rows.length) {
@@ -995,76 +1061,6 @@ function renderUsersList() {
     list.appendChild(li);
   });
 }
-
-// ---------- BACKUP HELPERS & BUTTONS ----------
-
-function downloadCSV(filename, rows) {
-  if (!rows || !rows.length) {
-    alert('No data found to backup.');
-    return;
-  }
-
-  const headers = Object.keys(rows[0]).join(',');
-  const dataLines = rows.map(row =>
-    Object.values(row)
-      .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
-      .join(',')
-  );
-  const csv = headers + '\n' + dataLines.join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// Students backup
-$('backup-students').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Backup फक्त admin साठी आहे.');
-    return;
-  }
-  const { data, error } = await supa.from('students').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error fetching students for backup.');
-    return;
-  }
-  downloadCSV('students_backup.csv', data);
-});
-
-// Fees backup
-$('backup-fees').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Backup फक्त admin साठी आहे.');
-    return;
-  }
-  const { data, error } = await supa.from('fees').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error fetching fees for backup.');
-    return;
-  }
-  downloadCSV('fees_backup.csv', data);
-});
-
-// Courses backup
-$('backup-courses').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Backup फक्त admin साठी आहे.');
-    return;
-  }
-  const { data, error } = await supa.from('courses').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error fetching courses for backup.');
-    return;
-  }
-  downloadCSV('courses_backup.csv', data);
-});
 
 // ---------- INIT ----------
 
