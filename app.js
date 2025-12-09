@@ -510,7 +510,6 @@ function clearStudentForm() {
 $('save-enquiry-btn').addEventListener('click', async () => {
   const name = $('enq-name').value.trim();
   const dob = $('enq-dob').value.trim();
-  const age = $('enq-age').value.trim();
   const m1Raw = $('enq-mobile').value.trim();
   const m2Raw = $('enq-mobile2').value.trim();
   const courseName = $('enq-course-select').value;
@@ -526,10 +525,13 @@ $('save-enquiry-btn').addEventListener('click', async () => {
     return;
   }
 
+  // ✅ Age नेहमी कोडने calculate करा
+  const ageComputed = calcAgeFromDob(dob);
+
   const payload = {
     name,
     dob: dob || null,
-    age: age ? Number(age) : null,
+    age: ageComputed === '' ? null : Number(ageComputed),
     mobile: mobCheck.m1 || '',
     mobile2: mobCheck.m2 || '',
     course_name: courseName
@@ -549,6 +551,7 @@ $('save-enquiry-btn').addEventListener('click', async () => {
   clearEnquiryForm();
   renderEnquiries();
 });
+
 
 $('clear-enquiry-btn').addEventListener('click', () => {
   clearEnquiryForm();
