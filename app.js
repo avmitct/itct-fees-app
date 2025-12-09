@@ -200,6 +200,7 @@ function applyRoleUI() {
   const adminButtons = [
     'manage-courses-btn',
     'settings-btn'
+    'backup-btn'
   ];
   adminButtons.forEach(id => {
     const el = $(id);
