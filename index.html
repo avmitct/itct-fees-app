@@ -27,7 +27,6 @@
       <input id="login-username" placeholder="Username">
       <input id="login-password" type="password" placeholder="Password">
       <button id="login-btn">Login</button>
-      
     </section>
 
     <!-- ========== MAIN APP ========== -->
@@ -49,14 +48,7 @@
         <button id="students-list-btn">Student List</button>
         <button id="reports-btn">Reports</button>
         <button id="settings-btn">Settings</button>
-        <button id="backup-btn" class="admin-only">Backup</button>
-<section id="backup-section" class="card hidden">
-  <h2>Backup Data</h2>
-  <button id="backup-students">Download Students CSV</button>
-  <button id="backup-fees">Download Fees CSV</button>
-  <button id="backup-courses">Download Courses CSV</button>
-</section>
-
+        <button id="backup-btn" class="hidden">Backup</button>
       </div>
 
       <!-- Dashboard -->
@@ -125,15 +117,17 @@
         <div id="report-output"></div>
       </section>
 
+      <!-- Backup (Admin only via JS) -->
+      <section id="backup-section" class="card hidden">
+        <h2>Backup Data</h2>
+        <button id="backup-students">Download Students CSV</button>
+        <button id="backup-fees">Download Fees CSV</button>
+        <button id="backup-courses">Download Courses CSV</button>
+      </section>
+
       <!-- Settings -->
       <section id="settings-section" class="card hidden">
         <h3>Settings</h3>
-<section id="backup-section" class="card" style="display:none;">
-  <h2>Backup Data</h2>
-  <button id="backup-students">Download Students CSV</button>
-  <button id="backup-fees">Download Fees CSV</button>
-  <button id="backup-courses">Download Courses CSV</button>
-</section>
 
         <!-- Change Admin Password -->
         <div class="settings-block">
@@ -152,7 +146,10 @@
             <option value="admin">Admin</option>
           </select>
           <button id="add-user-btn">Add User</button>
-          <p class="note">टीप: Users Supabase database मध्ये जतन होतात. फक्त Admin user नवीन users add करू शकतो.</p>
+          <p class="note">
+            टीप: Users Supabase database मध्ये जतन होतात.
+            फक्त Admin user नवीन users add करू शकतो.
+          </p>
         </div>
 
         <!-- User List -->
@@ -186,7 +183,7 @@
   <!-- Supabase JS (UMD) + client setup -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.48.0/dist/umd/supabase.js"></script>
   <script>
-    // 👉 इथे तुमच्या Supabase चा URL आणि anon key टाका
+    // 👉 इथे तुमच्या Supabase चा URL आणि anon key आधीच सेट आहेत
     const SUPABASE_URL  = "https://lbepbdnoowbestqhfupm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZXBiZG5vb3diZXN0cWhmdXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwODMxMjcsImV4cCI6MjA4MDY1OTEyN30.wH-fEGF2Ni1iUkxmvzTy2A6Y5kTUmBUMPJKQMCxcYbE";
 
