@@ -1,24 +1,20 @@
-// ITCT Admission System - Supabase Cloud Version
-// -----------------------------------------------
-// Tables required (see Supabase):
-// users(id uuid, username text unique, password text, role text)
-// courses(id uuid, name text unique, fee numeric)
-// students(id uuid, name text, dob date, age int, address text,
-//          mobile text, mobile2 text, course_name text, total_fee numeric, due_date date)
-// fees(id uuid, student_id uuid, amount numeric, discount numeric,
-//      note text, date timestamptz, receipt_no text, receipt_date date)
+// ITCT Admission System - Supabase Cloud Version + Enquiry
 
 const supa = window.supabaseClient;
 const $ = id => document.getElementById(id);
 
-// State in memory
+// ---------- Global state ----------
+
 let users = [];
 let courses = [];
 let students = [];
 let fees = [];
+let enquiries = [];
 let currentUser = null;
 
-function fmt(n) { return Number(n || 0).toFixed(2); }
+function fmt(n) {
+  return Number(n || 0).toFixed(2);
+}
 
 // ---------- Helpers: age & mobiles ----------
 
@@ -37,6 +33,12 @@ function updateAgeFromDob() {
   const dobVal = $('dob').value;
   const age = calcAgeFromDob(dobVal);
   $('age').value = age !== '' ? String(age) : '';
+}
+
+function updateEnqAgeFromDob() {
+  const dobVal = $('enq-dob').value;
+  const age = calcAgeFromDob(dobVal);
+  $('enq-age').value = age !== '' ? String(age) : '';
 }
 
 function normalizeMobile(str) {
@@ -65,6 +67,7 @@ function showOnly(sectionId) {
     'dashboard-section',
     'courses-section',
     'student-form',
+    'enquiry-section',
     'students-list',
     'reports-section',
     'settings-section',
@@ -103,7 +106,6 @@ async function loadUsers() {
     return;
   }
   if (!data || data.length === 0) {
-    // Create default admin
     const { data: created, error: err2 } = await supa
       .from('users')
       .insert({ username: 'admin', password: '1234', role: 'admin' })
@@ -149,8 +151,27 @@ async function loadFees() {
   fees = data || [];
 }
 
+async function loadEnquiries() {
+  const { data, error } = await supa
+    .from('enquiries')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error(error);
+    alert('Error loading enquiries');
+    return;
+  }
+  enquiries = data || [];
+}
+
 async function loadAllData() {
-  await Promise.all([loadUsers(), loadCourses(), loadStudents(), loadFees()]);
+  await Promise.all([
+    loadUsers(),
+    loadCourses(),
+    loadStudents(),
+    loadFees(),
+    loadEnquiries()
+  ]);
 }
 
 // ---------- LOGIN ----------
@@ -183,7 +204,9 @@ function afterLogin() {
   applyRoleUI();
   renderCourses();
   renderCourseSelect();
+  renderEnquiryCourseSelect();
   renderStudents();
+  renderEnquiries();
   renderReportCourseOptions();
   calcStats();
 
@@ -195,13 +218,13 @@ function afterLogin() {
   }
 }
 
-// ---------- ROLE-BASED UI ----------
+// ---------- ROLE-BASED UI + Logout ----------
 
 function applyRoleUI() {
   const adminButtons = [
     'manage-courses-btn',
     'settings-btn',
-    'backup-btn'      // Backup फक्त admin साठी
+    'backup-btn'
   ];
   adminButtons.forEach(id => {
     const el = $(id);
@@ -217,7 +240,6 @@ function applyRoleUI() {
   }
 }
 
-// Logout
 const logoutBtn = $('logout-btn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', () => {
@@ -282,6 +304,12 @@ $('students-list-btn').addEventListener('click', () => {
   renderStudents();
 });
 
+$('enquiry-btn').addEventListener('click', () => {
+  showOnly('enquiry-section');
+  renderEnquiryCourseSelect();
+  renderEnquiries();
+});
+
 $('manage-courses-btn').addEventListener('click', () => {
   if (!isAdmin()) {
     alert('Courses manage करण्याची परवानगी केवळ admin ला आहे.');
@@ -339,6 +367,7 @@ $('add-course-btn').addEventListener('click', async () => {
   $('course-fee').value = '';
   renderCourses();
   renderCourseSelect();
+  renderEnquiryCourseSelect();
   renderReportCourseOptions();
 });
 
@@ -365,6 +394,7 @@ function renderCourses() {
         courses = courses.filter(x => x.id !== c.id);
         renderCourses();
         renderCourseSelect();
+        renderEnquiryCourseSelect();
         renderReportCourseOptions();
       });
       li.appendChild(btn);
@@ -375,6 +405,25 @@ function renderCourses() {
 
 function renderCourseSelect() {
   const sel = $('course-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  if (courses.length === 0) {
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = '-- No courses added --';
+    sel.appendChild(o);
+    return;
+  }
+  courses.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.name;
+    o.textContent = `${c.name} — ₹${fmt(c.fee)}`;
+    sel.appendChild(o);
+  });
+}
+
+function renderEnquiryCourseSelect() {
+  const sel = $('enq-course-select');
   if (!sel) return;
   sel.innerHTML = '';
   if (courses.length === 0) {
@@ -456,6 +505,138 @@ function clearStudentForm() {
     .forEach(id => { if ($(id)) $(id).value = ''; });
 }
 
+// ---------- ENQUIRY FORM + LIST ----------
+
+$('save-enquiry-btn').addEventListener('click', async () => {
+  const name = $('enq-name').value.trim();
+  const dob = $('enq-dob').value.trim();
+  const age = $('enq-age').value.trim();
+  const m1Raw = $('enq-mobile').value.trim();
+  const m2Raw = $('enq-mobile2').value.trim();
+  const courseName = $('enq-course-select').value;
+
+  if (!name || !courseName) {
+    alert('नाव आणि course निवडणे आवश्यक आहे');
+    return;
+  }
+
+  const mobCheck = validateMobiles(m1Raw, m2Raw);
+  if (!mobCheck.ok) {
+    alert(mobCheck.msg);
+    return;
+  }
+
+  const payload = {
+    name,
+    dob: dob || null,
+    age: age ? Number(age) : null,
+    mobile: mobCheck.m1 || '',
+    mobile2: mobCheck.m2 || '',
+    course_name: courseName
+  };
+
+  const { data, error } = await supa
+    .from('enquiries')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) {
+    alert('Enquiry save करताना त्रुटी');
+    console.error(error);
+    return;
+  }
+  enquiries.unshift(data);
+  clearEnquiryForm();
+  renderEnquiries();
+});
+
+$('clear-enquiry-btn').addEventListener('click', () => {
+  clearEnquiryForm();
+});
+
+function clearEnquiryForm() {
+  ['enq-name','enq-dob','enq-age','enq-mobile','enq-mobile2']
+    .forEach(id => { if ($(id)) $(id).value = ''; });
+}
+
+$('enq-search').addEventListener('input', e => renderEnquiries(e.target.value));
+
+function renderEnquiries(filter = '') {
+  const list = $('enquiry-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const data = enquiries.filter(e => {
+    const text = (
+      e.name + ' ' +
+      (e.course_name || '') + ' ' +
+      (e.mobile || '') + ' ' +
+      (e.mobile2 || '')
+    ).toLowerCase();
+    return text.includes(filter.toLowerCase());
+  });
+
+  data.forEach(e => {
+    const li = document.createElement('li');
+    const d = (e.created_at || '').slice(0, 10);
+    li.innerHTML =
+      `<strong>${e.name}</strong> (${e.course_name || '-'}) — ` +
+      `Age: ${e.age || '-'} — Mob1: ${e.mobile || '-'} — Mob2: ${e.mobile2 || '-'} ` +
+      `${d ? '| Date: ' + d : ''} ` +
+      `<button onclick="convertEnquiry('${e.id}')">Convert to Admission</button>`;
+    list.appendChild(li);
+  });
+}
+
+window.convertEnquiry = async function (id) {
+  const e = enquiries.find(x => x.id === id);
+  if (!e) return;
+  if (!confirm('ही enquiry admission मध्ये convert करायची?')) return;
+
+  const mobCheck = validateMobiles(e.mobile, e.mobile2);
+  if (!mobCheck.ok) {
+    alert('मोबाईल नंबर चुकिचे आहेत, कृपया enquiry edit करा.');
+    return;
+  }
+
+  const master = courses.find(c => c.name === e.course_name);
+  const totalFee = master ? Number(master.fee) : 0;
+
+  const payload = {
+    name: e.name,
+    dob: e.dob || null,
+    age: e.age ? Number(e.age) : null,
+    address: '',
+    mobile: mobCheck.m1 || '',
+    mobile2: mobCheck.m2 || '',
+    course_name: e.course_name,
+    total_fee: totalFee,
+    due_date: null
+  };
+
+  const { data, error } = await supa
+    .from('students')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) {
+    alert('Admission create करताना त्रुटी');
+    console.error(error);
+    return;
+  }
+  students.unshift(data);
+
+  const { error: delErr } = await supa.from('enquiries').delete().eq('id', id);
+  if (delErr) console.error(delErr);
+  enquiries = enquiries.filter(x => x.id !== id);
+
+  renderStudents();
+  calcStats();
+  renderEnquiries();
+  showOnly('students-list');
+  alert('Enquiry यशस्वीरित्या admission मध्ये convert झाली.');
+};
+
 // ---------- STUDENT LIST ----------
 
 $('search').addEventListener('input', e => renderStudents(e.target.value));
@@ -497,7 +678,6 @@ function renderStudents(filter = '') {
     if (isAdmin()) {
       delBtn.addEventListener('click', async () => {
         if (!confirm('हा विद्यार्थी delete करायचा?')) return;
-        // delete fees first
         const { error: fErr } = await supa.from('fees').delete().eq('student_id', s.id);
         if (fErr) {
           alert('Fees delete करताना त्रुटी');
@@ -627,8 +807,7 @@ async function viewStudent(id) {
     <div class="modal-card" role="dialog" aria-modal="true">
       <h3>${s.name}</h3>
       <p>Course: ${s.course_name || '-'}</p>
-      <p>मोबाईल1: ${s.mobile || '-'} | मोबाईल2: ${s.mobile2 || '-'}</p>
-      <p>पत्ता: ${s.address || '-'}</p>
+      <p>मोबाईल1: ${s.mobile || '-'} | मोबाईल2: ${s.mobile2 || '-'} | पत्ता: ${s.address || '-'}</p>
       <p>Total Fee: ₹${fmt(totalFee)} | Paid: ₹${fmt(paid)} | Disc: ₹${fmt(disc)} | Balance: ₹${fmt(balance)}</p>
       <h4>Fees History</h4>
       <ul>${feesHtml}</ul>
@@ -654,11 +833,9 @@ async function viewStudent(id) {
   $('close-modal').addEventListener('click', closeModal);
 }
 
-// Edit fee
 window.editFee = async function (feeId) {
   const f = fees.find(x => x.id === feeId);
   if (!f) return;
-
   const s = students.find(x => x.id === f.student_id);
   if (!s) return;
 
@@ -704,7 +881,6 @@ window.editFee = async function (feeId) {
       console.error(error);
       return;
     }
-    // update in memory
     const idx = fees.findIndex(x => x.id === f.id);
     if (idx !== -1) fees[idx] = data;
 
@@ -749,6 +925,8 @@ function renderReportCourseOptions() {
   });
 }
 
+let lastReportRows = [];
+
 $('generate-payment-report').addEventListener('click', () => {
   const course = $('report-course').value;
   const from = $('report-from').value;
@@ -777,7 +955,7 @@ $('generate-payment-report').addEventListener('click', () => {
     });
   });
 
-  window._lastReport = rows;
+  lastReportRows = rows;
   const out = rows.length
     ? rows.map(r =>
         `<div>${r.date} — ${r.student} (${r.course}) — Rec: ₹${fmt(r.amount)} (Disc: ₹${fmt(r.discount)}) — ${r.note}` +
@@ -807,7 +985,7 @@ $('generate-balance-report').addEventListener('click', () => {
     });
   });
 
-  window._lastReport = rows;
+  lastReportRows = rows;
   const out = rows.length
     ? rows.map(r =>
         `<div>${r.student} (${r.course}) — Fee: ₹${fmt(r.fee)} | Paid: ₹${fmt(r.paid)} | Disc: ₹${fmt(r.discount)} | Balance: ₹${fmt(r.balance)}</div>`
@@ -838,13 +1016,92 @@ $('generate-due-report').addEventListener('click', () => {
     });
   });
 
-  window._lastReport = rows;
+  lastReportRows = rows;
   const out = rows.length
     ? rows.map(r =>
         `<div>${r.dueDate} — ${r.student} (${r.course}) — Balance: ₹${fmt(r.balance)} | Mobile: ${r.mobile}</div>`
       ).join('')
     : '<div>No due / overdue records</div>';
   $('report-output').innerHTML = out;
+});
+
+// Enquiry report
+$('generate-enquiry-report').addEventListener('click', () => {
+  const course = $('report-course').value;
+  const from = $('report-from').value;
+  const to = $('report-to').value;
+
+  const rows = enquiries.filter(e => {
+    if (course && e.course_name !== course) return false;
+    const d = (e.created_at || '').slice(0, 10);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  }).map(e => ({
+    type: 'enquiry',
+    date: (e.created_at || '').slice(0, 10),
+    student: e.name,
+    course: e.course_name,
+    mobile: e.mobile || e.mobile2 || '',
+    age: e.age || ''
+  }));
+
+  lastReportRows = rows;
+  const out = rows.length
+    ? rows.map(r =>
+        `<div>${r.date} — ${r.student} (${r.course}) — Age: ${r.age} — Mobile: ${r.mobile}</div>`
+      ).join('')
+    : '<div>No enquiry records</div>';
+  $('report-output').innerHTML = out;
+});
+
+// Export CSV for reports
+$('export-csv').addEventListener('click', () => {
+  const rows = lastReportRows || [];
+  if (!rows.length) {
+    alert('Report रिकामी आहे');
+    return;
+  }
+
+  let header;
+  if (rows[0].type === 'payment') {
+    header = 'Date,Student,Course,Amount,Discount,ReceiptNo,ReceiptDate,Note,Mobile';
+  } else if (rows[0].type === 'due') {
+    header = 'DueDate,Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
+  } else if (rows[0].type === 'enquiry') {
+    header = 'Date,Student,Course,Age,Mobile';
+  } else {
+    header = 'Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
+  }
+
+  const csvLines = [header];
+  rows.forEach(r => {
+    if (r.type === 'payment') {
+      csvLines.push(
+        `${r.date},"${r.student}","${r.course}",${fmt(r.amount)},${fmt(r.discount)},"${(r.receiptNo||'').replace(/"/g,'""')}","${(r.receiptDate||'').replace(/"/g,'""')}","${(r.note||'').replace(/"/g,'""')}",${r.mobile}`
+      );
+    } else if (r.type === 'due') {
+      csvLines.push(
+        `${r.dueDate},"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
+      );
+    } else if (r.type === 'enquiry') {
+      csvLines.push(
+        `${r.date},"${r.student}","${r.course}",${r.age},"${r.mobile}"`
+      );
+    } else {
+      csvLines.push(
+        `"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
+      );
+    }
+  });
+
+  const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'itct-report.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 });
 
 // ---------- BACKUP HELPERS ----------
@@ -872,7 +1129,6 @@ function downloadCSV(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
-// Students backup
 $('backup-students').addEventListener('click', async () => {
   if (!isAdmin()) {
     alert('Backup फक्त admin साठी आहे.');
@@ -887,7 +1143,6 @@ $('backup-students').addEventListener('click', async () => {
   downloadCSV('students_backup.csv', data);
 });
 
-// Fees backup
 $('backup-fees').addEventListener('click', async () => {
   if (!isAdmin()) {
     alert('Backup फक्त admin साठी आहे.');
@@ -902,7 +1157,6 @@ $('backup-fees').addEventListener('click', async () => {
   downloadCSV('fees_backup.csv', data);
 });
 
-// Courses backup
 $('backup-courses').addEventListener('click', async () => {
   if (!isAdmin()) {
     alert('Backup फक्त admin साठी आहे.');
@@ -915,49 +1169,6 @@ $('backup-courses').addEventListener('click', async () => {
     return;
   }
   downloadCSV('courses_backup.csv', data);
-});
-
-// CSV export (reports)
-$('export-csv').addEventListener('click', () => {
-  const rows = window._lastReport || [];
-  if (!rows.length) {
-    alert('Report रिकामी आहे');
-    return;
-  }
-
-  let header;
-  if (rows[0].type === 'payment') {
-    header = 'Date,Student,Course,Amount,Discount,ReceiptNo,ReceiptDate,Note,Mobile';
-  } else if (rows[0].type === 'due') {
-    header = 'DueDate,Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
-  } else {
-    header = 'Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
-  }
-
-  const csvLines = [header];
-  rows.forEach(r => {
-    if (r.type === 'payment') {
-      csvLines.push(
-        `${r.date},"${r.student}","${r.course}",${fmt(r.amount)},${fmt(r.discount)},"${(r.receiptNo||'').replace(/"/g,'""')}","${(r.receiptDate||'').replace(/"/g,'""')}","${(r.note||'').replace(/"/g,'""')}",${r.mobile}`
-      );
-    } else if (r.type === 'due') {
-      csvLines.push(
-        `${r.dueDate},"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
-      );
-    } else {
-      csvLines.push(
-        `"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
-      );
-    }
-  });
-
-  const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'itct-fees-report.csv';
-  a.click();
-  URL.revokeObjectURL(url);
 });
 
 // ---------- SETTINGS: PASSWORD + USERS ----------
@@ -1076,5 +1287,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (dobInput) {
     dobInput.addEventListener('change', updateAgeFromDob);
     dobInput.addEventListener('blur', updateAgeFromDob);
+  }
+
+  const enqDobInput = $('enq-dob');
+  if (enqDobInput) {
+    enqDobInput.addEventListener('change', updateEnqAgeFromDob);
+    enqDobInput.addEventListener('blur', updateEnqAgeFromDob);
   }
 });
