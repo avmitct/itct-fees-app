@@ -275,6 +275,10 @@ function calcStats() {
 
 // Toolbar navigation
 $('backup-btn').addEventListener('click', () => {
+  if (!isAdmin()) {
+    alert('Backup option फक्त admin साठी आहे.');
+    return;
+  }
   showOnly('backup-section');
 });
 
