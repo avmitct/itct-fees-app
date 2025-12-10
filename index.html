@@ -23,10 +23,13 @@
   <main>
     <!-- ========== LOGIN ========== -->
     <section id="login-section" class="card">
-      <h2>Login</h2>
+      <h2>🔐 Login</h2>
+      <p class="note">कृपया admin किंवा user credentials वापरून लॉगिन करा.</p>
       <input id="login-username" placeholder="Username">
       <input id="login-password" type="password" placeholder="Password">
-      <button id="login-btn">Login</button>
+      <div class="row" style="margin-top:8px;">
+        <button id="login-btn">Login</button>
+      </div>
     </section>
 
     <!-- ========== MAIN APP ========== -->
@@ -34,7 +37,7 @@
       <!-- User bar -->
       <div id="user-bar" class="card user-bar">
         <div>
-          Logged in as: <span id="current-user-name"></span>
+          👤 Logged in as: <strong id="current-user-name"></strong>
           (<span id="current-user-role"></span>)
         </div>
         <button id="logout-btn" class="secondary">Logout</button>
@@ -42,19 +45,20 @@
 
       <!-- Toolbar -->
       <div class="toolbar">
-        <button id="dashboard-btn">Dashboard</button>
-        <button id="manage-courses-btn">Courses</button>
-        <button id="add-student-btn">नवीन विद्यार्थी</button>
-        <button id="enquiry-btn">Enquiry</button>
-        <button id="students-list-btn">Student List</button>
-        <button id="reports-btn">Reports</button>
-        <button id="settings-btn">Settings</button>
-        <button id="backup-btn" class="hidden">Backup</button>
+        <button id="dashboard-btn">🏠 Dashboard</button>
+        <button id="manage-courses-btn">📚 Courses</button>
+        <button id="add-student-btn">➕ नवीन विद्यार्थी</button>
+        <button id="enquiry-btn">📝 Enquiry</button>
+        <button id="students-list-btn">👥 Student List</button>
+        <button id="reports-btn">📊 Reports</button>
+        <button id="settings-btn">⚙️ Settings</button>
+        <button id="backup-btn" class="hidden">☁ Backup</button>
       </div>
 
       <!-- Dashboard -->
       <section id="dashboard-section" class="card">
-        <h3>Dashboard</h3>
+        <h3>📊 Dashboard</h3>
+        <p class="note">इथे एकूण विद्यार्थी व फीची quick summary दिसेल.</p>
         <div id="dash-total-students">Total students: 0</div>
         <div id="dash-total-fee">Total course fee: ₹0</div>
         <div id="dash-total-paid">Total paid: ₹0</div>
@@ -64,7 +68,8 @@
 
       <!-- Courses -->
       <section id="courses-section" class="card hidden">
-        <h3>Courses</h3>
+        <h3>📚 Courses</h3>
+        <p class="note">इथे नवीन course add करा किंवा विद्यमान courses पाहा.</p>
         <div class="row">
           <input id="course-name" placeholder="Course name">
           <input id="course-fee" placeholder="Fee (₹)" type="number">
@@ -75,7 +80,8 @@
 
       <!-- Student form -->
       <section id="student-form" class="card hidden">
-        <h3>विद्यार्थ्याची माहिती</h3>
+        <h3>🧾 विद्यार्थ्याची माहिती</h3>
+        <p class="note">नवीन admission साठी विद्यार्थ्याची माहिती भरा.</p>
         <input id="name" placeholder="नाव *">
         <input id="dob" placeholder="DOB (YYYY-MM-DD)">
         <input id="age" placeholder="वय">
@@ -83,7 +89,7 @@
         <input id="mobile" placeholder="मोबाईल 1 *" maxlength="10">
         <input id="mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
         <hr>
-        <h4>Course माहिती</h4>
+        <h4>🎓 Course माहिती</h4>
         <select id="course-select"></select>
         <input id="course-duedate" type="date" placeholder="Due date">
         <div class="row" style="margin-top:.5rem;">
@@ -94,7 +100,8 @@
 
       <!-- Enquiry section -->
       <section id="enquiry-section" class="card hidden">
-        <h3>Enquiry</h3>
+        <h3>📝 Enquiry</h3>
+        <p class="note">Institute ला येणाऱ्या enquiries इथे नोंदवा आणि नंतर admission मध्ये convert करा.</p>
         <div class="enq-form">
           <input id="enq-name" placeholder="नाव *">
           <input id="enq-dob" type="date" placeholder="DOB">
@@ -108,21 +115,23 @@
           </div>
         </div>
         <hr>
-        <h4>Enquiry List</h4>
+        <h4>📋 Enquiry List</h4>
         <input id="enq-search" placeholder="शोध... नाव / मोबाईल / कोर्स">
         <ul id="enquiry-list"></ul>
       </section>
 
       <!-- Students list -->
       <section id="students-list" class="card">
-        <h3>विद्यार्थी यादी</h3>
+        <h3>👥 विद्यार्थी यादी</h3>
+        <p class="note">इथे सर्व admissions दिसतील. Fees व reminder इथून manage करा.</p>
         <input id="search" placeholder="शोध... नाव / कोर्स / मोबाईल">
         <ul id="list"></ul>
       </section>
 
       <!-- Reports -->
       <section id="reports-section" class="card hidden">
-        <h3>Reports</h3>
+        <h3>📊 Reports</h3>
+        <p class="note">Payment, Balance, Due आणि Enquiry reports इथे तयार करा.</p>
         <div class="row">
           <select id="report-course">
             <option value="">-- सर्व कोर्स --</option>
@@ -142,7 +151,8 @@
 
       <!-- Backup (Admin only via JS) -->
       <section id="backup-section" class="card hidden">
-        <h2>Backup Data</h2>
+        <h3>☁ Backup</h3>
+        <p class="note">Students, Fees आणि Courses चे CSV backup इथे download करता येतील.</p>
         <button id="backup-students">Download Students CSV</button>
         <button id="backup-fees">Download Fees CSV</button>
         <button id="backup-courses">Download Courses CSV</button>
@@ -150,18 +160,18 @@
 
       <!-- Settings -->
       <section id="settings-section" class="card hidden">
-        <h3>Settings</h3>
+        <h3>⚙️ Settings</h3>
 
         <!-- Change Admin Password -->
         <div class="settings-block">
-          <h4>Change Admin Password</h4>
+          <h4>🔑 Change Admin Password</h4>
           <input id="new-pass" type="password" placeholder="New admin password">
           <button id="change-pass-btn">Change Password</button>
         </div>
 
         <!-- Add User -->
         <div class="settings-block">
-          <h4>Add User</h4>
+          <h4>👤 Add User</h4>
           <input id="new-user-username" placeholder="Username">
           <input id="new-user-password" type="password" placeholder="Password">
           <select id="new-user-role">
@@ -177,7 +187,7 @@
 
         <!-- User List -->
         <div class="settings-block">
-          <h4>User List</h4>
+          <h4>📜 User List</h4>
           <ul id="users-list"></ul>
           <p class="note">टीप: मुख्य admin user delete करता येणार नाही.</p>
         </div>
