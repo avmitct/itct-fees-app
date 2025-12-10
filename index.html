@@ -4,14 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ITCT Admission System (Cloud)</title>
+
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
+
+  <!-- Remix Icons -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css"
+  />
 </head>
+
 <body>
   <!-- HEADER -->
   <header class="header">
     <div class="header-inner">
-      <img src="logo.jpg" alt="ITCT Logo" class="logo" onerror="this.style.display='none'">
+      <img src="logo.jpg" class="logo" alt="ITCT Logo" onerror="this.style.display='none'">
       <div class="title">
         <div class="name">ITCT Computer Education</div>
         <div class="location">Nandurbar</div>
@@ -21,152 +29,290 @@
   </header>
 
   <main>
-    <!-- ========== LOGIN ========== -->
-    <section id="login-section" class="card">
-      <h2>🔐 Login</h2>
-      <p class="note">कृपया admin किंवा user credentials वापरून लॉगिन करा.</p>
-      <input id="login-username" placeholder="Username">
-      <input id="login-password" type="password" placeholder="Password">
-      <div class="row" style="margin-top:8px;">
-        <button id="login-btn">Login</button>
+
+    <!-- ================= LOGIN ================= -->
+    <section id="login-section" class="card card-with-art">
+      <div class="card-main">
+        <h2><i class="ri-shield-user-line"></i> Login</h2>
+        <p class="note">कृपया admin किंवा user credentials वापरून लॉगिन करा.</p>
+
+        <input id="login-username" placeholder="Username">
+        <input id="login-password" type="password" placeholder="Password">
+
+        <div class="row" style="margin-top:8px;">
+          <button id="login-btn">
+            <i class="ri-login-circle-line"></i> Login
+          </button>
+        </div>
+      </div>
+
+      <div class="card-art">
+        <!-- SVG Illustration -->
+        <svg viewBox="0 0 140 100">
+          <defs>
+            <linearGradient id="gradLogin" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#f4a300"/>
+              <stop offset="100%" stop-color="#9b4dcc"/>
+            </linearGradient>
+          </defs>
+
+          <rect x="15" y="12" width="110" height="76" rx="10"
+                fill="#f7efff" stroke="#9b4dcc" stroke-width="1.5"/>
+          <rect x="30" y="32" width="80" height="10" rx="5" fill="#e1d4ff"/>
+          <rect x="30" y="50" width="58" height="10" rx="5" fill="#e1d4ff"/>
+          <circle cx="98" cy="55" r="9" fill="url(#gradLogin)"/>
+          <rect x="93" y="50" width="10" height="11" rx="3" fill="#fff"/>
+          <circle cx="98" cy="49" r="3.2" fill="#fff"/>
+        </svg>
       </div>
     </section>
 
-    <!-- ========== MAIN APP ========== -->
+    <!-- ================= MAIN APP ================= -->
     <section id="app-section" class="hidden">
-      <!-- User bar -->
+
+      <!-- Top User Bar -->
       <div id="user-bar" class="card user-bar">
         <div>
-          👤 Logged in as: <strong id="current-user-name"></strong>
+          👤 Logged in as:
+          <strong id="current-user-name"></strong>
           (<span id="current-user-role"></span>)
         </div>
-        <button id="logout-btn" class="secondary">Logout</button>
+
+        <button id="logout-btn" class="secondary">
+          <i class="ri-logout-circle-r-line"></i> Logout
+        </button>
       </div>
 
       <!-- Toolbar -->
       <div class="toolbar">
-        <button id="dashboard-btn">🏠 Dashboard</button>
-        <button id="manage-courses-btn">📚 Courses</button>
-        <button id="add-student-btn">➕ नवीन विद्यार्थी</button>
-        <button id="enquiry-btn">📝 Enquiry</button>
-        <button id="students-list-btn">👥 Student List</button>
-        <button id="reports-btn">📊 Reports</button>
-        <button id="settings-btn">⚙️ Settings</button>
-        <button id="backup-btn" class="hidden">☁ Backup</button>
+        <button id="dashboard-btn"><i class="ri-home-3-line"></i> Dashboard</button>
+        <button id="manage-courses-btn"><i class="ri-book-2-line"></i> Courses</button>
+        <button id="add-student-btn"><i class="ri-user-add-line"></i> नवीन विद्यार्थी</button>
+        <button id="enquiry-btn"><i class="ri-question-answer-line"></i> Enquiry</button>
+        <button id="students-list-btn"><i class="ri-team-line"></i> Student List</button>
+        <button id="reports-btn"><i class="ri-bar-chart-2-line"></i> Reports</button>
+        <button id="settings-btn"><i class="ri-settings-3-line"></i> Settings</button>
+        <button id="backup-btn" class="hidden"><i class="ri-cloud-line"></i> Backup</button>
       </div>
 
-      <!-- Dashboard -->
-      <section id="dashboard-section" class="card">
-        <h3>📊 Dashboard</h3>
-        <p class="note">इथे एकूण विद्यार्थी व फीची quick summary दिसेल.</p>
-        <div id="dash-total-students">Total students: 0</div>
-        <div id="dash-total-fee">Total course fee: ₹0</div>
-        <div id="dash-total-paid">Total paid: ₹0</div>
-        <div id="dash-total-discount">Total discount: ₹0</div>
-        <div id="dash-total-balance">Total balance: ₹0</div>
+      <!-- ================= Dashboard ================= -->
+      <section id="dashboard-section" class="card card-with-art">
+        <div class="card-main">
+          <h3><i class="ri-dashboard-line"></i> Dashboard</h3>
+          <p class="note">इथे एकूण विद्यार्थी व फीची quick summary दिसेल.</p>
+
+          <div id="dash-total-students">Total students: 0</div>
+          <div id="dash-total-fee">Total course fee: ₹0</div>
+          <div id="dash-total-paid">Total paid: ₹0</div>
+          <div id="dash-total-discount">Total discount: ₹0</div>
+          <div id="dash-total-balance">Total balance: ₹0</div>
+        </div>
+
+        <div class="card-art">
+          <!-- SVG Dashboard Illustration -->
+          <svg viewBox="0 0 160 100">
+            <defs>
+              <linearGradient id="gradDash" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#9b4dcc"/>
+                <stop offset="100%" stop-color="#f4a300"/>
+              </linearGradient>
+            </defs>
+
+            <rect x="10" y="14" width="140" height="70" rx="12"
+                  fill="#f7efff" stroke="#9b4dcc" stroke-width="1.5"/>
+
+            <polyline points="20,70 45,55 72,62 102,38 130,46"
+                      fill="none" stroke="url(#gradDash)" stroke-width="3"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+
+            <circle cx="45" cy="55" r="3" fill="#9b4dcc"/>
+            <circle cx="72" cy="62" r="3" fill="#9b4dcc"/>
+            <circle cx="102" cy="38" r="3" fill="#9b4dcc"/>
+          </svg>
+        </div>
       </section>
 
-      <!-- Courses -->
+      <!-- ================= Courses ================= -->
       <section id="courses-section" class="card hidden">
-        <h3>📚 Courses</h3>
-        <p class="note">इथे नवीन course add करा किंवा विद्यमान courses पाहा.</p>
+        <h3><i class="ri-book-2-line"></i> Courses</h3>
+        <p class="note">नवीन course add करा किंवा विद्यमान courses पाहा.</p>
+
         <div class="row">
           <input id="course-name" placeholder="Course name">
-          <input id="course-fee" placeholder="Fee (₹)" type="number">
-          <button id="add-course-btn">Add Course</button>
+          <input id="course-fee" type="number" placeholder="Fee (₹)">
+          <button id="add-course-btn"><i class="ri-add-line"></i> Add</button>
         </div>
+
         <ul id="courses-list"></ul>
       </section>
 
-      <!-- Student form -->
+      <!-- ================= Student Form ================= -->
       <section id="student-form" class="card hidden">
-        <h3>🧾 विद्यार्थ्याची माहिती</h3>
-        <p class="note">नवीन admission साठी विद्यार्थ्याची माहिती भरा.</p>
+        <h3><i class="ri-user-3-line"></i> विद्यार्थ्याची माहिती</h3>
+
         <input id="name" placeholder="नाव *">
         <input id="dob" placeholder="DOB (YYYY-MM-DD)">
         <input id="age" placeholder="वय">
         <input id="address" placeholder="पत्ता">
         <input id="mobile" placeholder="मोबाईल 1 *" maxlength="10">
         <input id="mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
+
         <hr>
+
         <h4>🎓 Course माहिती</h4>
+
         <select id="course-select"></select>
-        <input id="course-duedate" type="date" placeholder="Due date">
-        <div class="row" style="margin-top:.5rem;">
-          <button id="save-student-btn">जतन करा</button>
-          <button id="cancel-student-btn" class="secondary">रद्द करा</button>
+        <input id="course-duedate" type="date">
+
+        <div class="row">
+          <button id="save-student-btn"><i class="ri-save-3-line"></i> जतन करा</button>
+          <button id="cancel-student-btn" class="secondary">
+            <i class="ri-close-circle-line"></i> रद्द करा
+          </button>
         </div>
       </section>
 
-      <!-- Enquiry section -->
-      <section id="enquiry-section" class="card hidden">
-        <h3>📝 Enquiry</h3>
-        <p class="note">Institute ला येणाऱ्या enquiries इथे नोंदवा आणि नंतर admission मध्ये convert करा.</p>
-        <div class="enq-form">
-          <input id="enq-name" placeholder="नाव *">
-          <input id="enq-dob" type="date" placeholder="DOB">
-          <input id="enq-age" placeholder="वय" readonly>
-          <input id="enq-mobile" placeholder="मोबाईल 1 *" maxlength="10">
-          <input id="enq-mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
-          <select id="enq-course-select"></select>
-          <div class="row" style="margin-top:.5rem;">
-            <button id="save-enquiry-btn">Enquiry Save करा</button>
-            <button id="clear-enquiry-btn" class="secondary">Clear</button>
+      <!-- ================= Enquiry ================= -->
+      <section id="enquiry-section" class="card card-with-art hidden">
+        <div class="card-main">
+          <h3><i class="ri-question-answer-line"></i> Enquiry</h3>
+
+          <div class="enq-form">
+            <input id="enq-name" placeholder="नाव *">
+            <input id="enq-dob" type="date">
+            <input id="enq-age" placeholder="वय" readonly>
+            <input id="enq-mobile" maxlength="10" placeholder="मोबाईल 1 *">
+            <input id="enq-mobile2" maxlength="10" placeholder="मोबाईल 2 (optional)">
+            <select id="enq-course-select"></select>
+
+            <div class="row">
+              <button id="save-enquiry-btn"><i class="ri-save-3-line"></i> Save</button>
+              <button id="clear-enquiry-btn" class="secondary">
+                <i class="ri-eraser-line"></i> Clear
+              </button>
+            </div>
           </div>
+
+          <hr>
+
+          <h4>📋 Enquiry List</h4>
+          <input id="enq-search" placeholder="शोध... नाव / मोबाईल / कोर्स">
+          <ul id="enquiry-list"></ul>
         </div>
-        <hr>
-        <h4>📋 Enquiry List</h4>
-        <input id="enq-search" placeholder="शोध... नाव / मोबाईल / कोर्स">
-        <ul id="enquiry-list"></ul>
+
+        <div class="card-art">
+          <!-- SVG Enquiry Illustration -->
+          <svg viewBox="0 0 150 100">
+            <defs>
+              <linearGradient id="gradEnq" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f4a300"/>
+                <stop offset="100%" stop-color="#9b4dcc"/>
+              </linearGradient>
+            </defs>
+
+            <rect x="18" y="18" width="114" height="64" rx="10"
+                  fill="#fdf7ff" stroke="#9b4dcc" stroke-width="1.5"/>
+
+            <rect x="30" y="30" width="90" height="9" rx="4.5" fill="#e8dafd"/>
+            <rect x="30" y="45" width="70" height="9" rx="4.5" fill="#fbe1b0"/>
+
+            <circle cx="46" cy="72" r="10.5" fill="url(#gradEnq)"/>
+          </svg>
+        </div>
       </section>
 
-      <!-- Students list -->
+      <!-- ================= Student List ================= -->
       <section id="students-list" class="card">
-        <h3>👥 विद्यार्थी यादी</h3>
-        <p class="note">इथे सर्व admissions दिसतील. Fees व reminder इथून manage करा.</p>
-        <input id="search" placeholder="शोध... नाव / कोर्स / मोबाईल">
+        <h3><i class="ri-team-line"></i> विद्यार्थी यादी</h3>
+        <input id="search" placeholder="शोध... नाव / मोबाईल / कोर्स">
         <ul id="list"></ul>
       </section>
 
-      <!-- Reports -->
-      <section id="reports-section" class="card hidden">
-        <h3>📊 Reports</h3>
-        <p class="note">Payment, Balance, Due आणि Enquiry reports इथे तयार करा.</p>
-        <div class="row">
-          <select id="report-course">
-            <option value="">-- सर्व कोर्स --</option>
-          </select>
-          <input id="report-from" type="date">
-          <input id="report-to" type="date">
+      <!-- ================= Reports ================= -->
+      <section id="reports-section" class="card card-with-art hidden">
+        <div class="card-main">
+          <h3><i class="ri-bar-chart-2-line"></i> Reports</h3>
+
+          <div class="row">
+            <select id="report-course"><option value="">-- सर्व कोर्स --</option></select>
+            <input id="report-from" type="date">
+            <input id="report-to" type="date">
+          </div>
+
+          <div class="row">
+            <button id="generate-payment-report">Payment</button>
+            <button id="generate-balance-report">Balance</button>
+            <button id="generate-due-report">Due</button>
+            <button id="generate-enquiry-report">Enquiry</button>
+            <button id="export-csv"><i class="ri-file-excel-2-line"></i> Export</button>
+          </div>
+
+          <div id="report-output"></div>
         </div>
-        <div class="row">
-          <button id="generate-payment-report">Payment report</button>
-          <button id="generate-balance-report">Balance report</button>
-          <button id="generate-due-report">Due / Overdue report</button>
-          <button id="generate-enquiry-report">Enquiry report</button>
-          <button id="export-csv">Export CSV (Excel)</button>
+
+        <div class="card-art">
+          <!-- SVG Reports -->
+          <svg viewBox="0 0 150 100">
+            <defs>
+              <linearGradient id="gradRep" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#9b4dcc"/>
+                <stop offset="100%" stop-color="#f4a300"/>
+              </linearGradient>
+            </defs>
+
+            <rect x="18" y="16" width="114" height="68" rx="10"
+                  fill="#f7efff" stroke="#9b4dcc" stroke-width="1.5"/>
+
+            <rect x="35" y="46" width="10" height="24" rx="2" fill="#e7d7ff"/>
+            <rect x="57" y="40" width="10" height="30" rx="2" fill="#f9e0b0"/>
+            <rect x="79" y="52" width="10" height="18" rx="2" fill="#e7d7ff"/>
+            <rect x="101" y="36" width="10" height="34" rx="2" fill="url(#gradRep)"/>
+          </svg>
         </div>
-        <div id="report-output"></div>
       </section>
 
-      <!-- Backup (Admin only via JS) -->
-      <section id="backup-section" class="card hidden">
-        <h3>☁ Backup</h3>
-        <p class="note">Students, Fees आणि Courses चे CSV backup इथे download करता येतील.</p>
-        <button id="backup-students">Download Students CSV</button>
-        <button id="backup-fees">Download Fees CSV</button>
-        <button id="backup-courses">Download Courses CSV</button>
+      <!-- ================= Backup ================= -->
+      <section id="backup-section" class="card card-with-art hidden">
+        <div class="card-main">
+          <h3><i class="ri-cloud-line"></i> Backup</h3>
+          <button id="backup-students">Download Students</button>
+          <button id="backup-fees">Download Fees</button>
+          <button id="backup-courses">Download Courses</button>
+        </div>
+
+        <div class="card-art">
+          <!-- SVG Cloud Backup -->
+          <svg viewBox="0 0 150 100">
+            <defs>
+              <linearGradient id="gradCloud" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f4a300"/>
+                <stop offset="100%" stop-color="#9b4dcc"/>
+              </linearGradient>
+            </defs>
+
+            <circle cx="55" cy="52" r="16" fill="#f7efff"/>
+            <circle cx="76" cy="46" r="20" fill="#f7efff"/>
+            <rect x="46" y="52" width="60" height="20" rx="10"
+                  fill="#f7efff" stroke="#9b4dcc" stroke-width="1.5"/>
+
+            <path d="M76 48v13" stroke="url(#gradCloud)" stroke-width="3"
+                  stroke-linecap="round"/>
+            <path d="M70 56l6 6 6-6" fill="none"
+                  stroke="url(#gradCloud)" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
       </section>
 
-      <!-- Settings -->
+      <!-- ================= Settings ================= -->
       <section id="settings-section" class="card hidden">
-        <h3>⚙️ Settings</h3>
+        <h3><i class="ri-settings-3-line"></i> Settings</h3>
 
-        <!-- Change Admin Password -->
+        <!-- Change Password -->
         <div class="settings-block">
           <h4>🔑 Change Admin Password</h4>
-          <input id="new-pass" type="password" placeholder="New admin password">
-          <button id="change-pass-btn">Change Password</button>
+          <input id="new-pass" type="password" placeholder="New password">
+          <button id="change-pass-btn">Change</button>
         </div>
 
         <!-- Add User -->
@@ -179,23 +325,20 @@
             <option value="admin">Admin</option>
           </select>
           <button id="add-user-btn">Add User</button>
-          <p class="note">
-            टीप: Users Supabase database मध्ये जतन होतात.
-            फक्त Admin user नवीन users add करू शकतो.
-          </p>
+          <p class="note">टीप: Users Supabase मध्ये जतन होतात.</p>
         </div>
 
         <!-- User List -->
         <div class="settings-block">
           <h4>📜 User List</h4>
           <ul id="users-list"></ul>
-          <p class="note">टीप: मुख्य admin user delete करता येणार नाही.</p>
         </div>
+
       </section>
     </section>
   </main>
 
-  <!-- Template for student item -->
+  <!-- STUDENT LIST TEMPLATE -->
   <template id="student-item-tpl">
     <li class="student-item">
       <div class="info">
@@ -210,11 +353,12 @@
     </li>
   </template>
 
-  <!-- Modal -->
-  <div id="modal" class="hidden" aria-hidden="true"></div>
+  <!-- MODAL -->
+  <div id="modal" class="hidden"></div>
 
-  <!-- Supabase JS (UMD) + client setup -->
+  <!-- Supabase client -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.48.0/dist/umd/supabase.js"></script>
+
   <script>
     const SUPABASE_URL  = "https://lbepbdnoowbestqhfupm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZXBiZG5vb3diZXN0cWhmdXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwODMxMjcsImV4cCI6MjA4MDY1OTEyN30.wH-fEGF2Ni1iUkxmvzTy2A6Y5kTUmBUMPJKQMCxcYbE";
