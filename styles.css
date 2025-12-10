@@ -252,6 +252,13 @@ button.success {
   background: linear-gradient(135deg, #22c58b, #1fbf75);
 }
 
+/* Button icons (RemixIcon) */
+button i {
+  margin-right: 4px;
+  font-size: 1rem;
+  vertical-align: middle;
+}
+
 /* small icon buttons */
 .student-item button,
 #enquiry-list button,
@@ -441,6 +448,41 @@ input[readonly] {
   animation: popIn 0.18s ease-out;
 }
 
+/* ============ Card + Illustration Layout ============ */
+
+.card-with-art {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.card-with-art .card-main {
+  flex: 1 1 240px;
+}
+
+.card-with-art .card-art {
+  flex: 0 0 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* SVG illustrations inside cards */
+.card-with-art .card-art svg {
+  max-width: 160px;
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 10px 22px rgba(31, 0, 63, 0.35));
+  transform: translateY(2px);
+  transition: transform 0.2s ease-out, filter 0.2s ease-out;
+}
+
+.card-with-art:hover .card-art svg {
+  transform: translateY(-2px) scale(1.02);
+  filter: drop-shadow(0 16px 30px rgba(31, 0, 63, 0.5));
+}
+
 /* ============ Utility ============ */
 
 .hidden {
@@ -449,7 +491,7 @@ input[readonly] {
 
 /* small screens tweaks */
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .header-inner {
     align-items: flex-start;
   }
@@ -460,6 +502,16 @@ input[readonly] {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+  .card-with-art {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .card-with-art .card-art {
+    justify-content: flex-end;
+  }
+  .card-with-art .card-art svg {
+    max-width: 130px;
   }
 }
 
