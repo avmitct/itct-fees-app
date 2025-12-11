@@ -376,30 +376,26 @@ async function openFeesModal(student) {
     }
 
     // prepare record for 'fees' table
-    const payload = {
-      student_id: student.id || null,
-      student_name: student.name || "",
-      amount: amount,
-      discount: discount || 0,
-      receipt_no: receipt || null,
-      date: date || new Date().toISOString().slice(0,10),
-      created_by: (window.currentUser && window.currentUser.username) || (student.created_by || null)
-    };
+    // --- INSERT PAYLOAD matching your fees table schema ---
+const payload = {
+  student_id: student.id,          // student.id should be UUID string
+  student_name: student.name || "",
+  total_fee: Number(amount || 0),  // your table uses total_fee for amount
+  discount: Number(discount || 0),
+  receipt_no: receipt || null,     // if column is named receipt_no
+  note: "",                         // optional text
+  date: date || new Date().toISOString()
+};
 
-    // insert into Supabase
-    try {
-      const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
-      if (error) {
-        console.error("Fees insert error:", error);
-        alert("Fees save करताना त्रुटी. Console तपासा.");
-        return;
-      }
+const { data, error } = await supabaseClient.from("fees").insert([payload]).select().single();
+if (error) {
+  console.error("Fees insert error:", error);
+  alert("Fees save करताना त्रुटी — Console तपासा.");
+  return;
+}
+console.log("Fees inserted:", data);
+alert("Fees saved successfully.");
 
-      // Optionally update student's paid/balance fields (if your schema has those fields)
-      // Example: increment paid sum (uncomment if you maintain student.paid_total field)
-      // await supaClient.from('students').update({ paid_total: student.paid_total + amount }).eq('id', student.id);
-
-      alert("Fees saved successfully.");
       closeModal();
 
       // refresh local data lists on UI (call your existing loaders)
