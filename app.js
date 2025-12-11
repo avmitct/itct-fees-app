@@ -1,1300 +1,404 @@
-// ITCT Admission System - Supabase Cloud Version + Enquiry
-
+// ================= Helper $ & supabase =================
+function $(id) { return document.getElementById(id); }
 const supa = window.supabaseClient;
-const $ = id => document.getElementById(id);
 
-// ---------- Global state ----------
-
-let users = [];
+// ============== State =================
+let currentUser = null;
 let courses = [];
 let students = [];
-let fees = [];
 let enquiries = [];
-let currentUser = null;
+let fees = [];
+let users = [];
+let lastReportRows = [];
 
-function fmt(n) {
-  return Number(n || 0).toFixed(2);
-}
-
-// ---------- Helpers: age & mobiles ----------
-
+// ============== Utilities =================
 function calcAgeFromDob(dobStr) {
-  if (!dobStr) return '';
+  if (!dobStr) return "";
   const d = new Date(dobStr);
-  if (isNaN(d.getTime())) return '';
+  if (Number.isNaN(d.getTime())) return "";
   const today = new Date();
   let age = today.getFullYear() - d.getFullYear();
   const m = today.getMonth() - d.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
-  return age >= 0 ? age : '';
+  return age >= 0 ? age : "";
 }
 
-function updateAgeFromDob() {
-  const dobVal = $('dob').value;
-  const age = calcAgeFromDob(dobVal);
-  $('age').value = age !== '' ? String(age) : '';
-}
-
-function updateEnqAgeFromDob() {
-  const dobVal = $('enq-dob').value;
-  const age = calcAgeFromDob(dobVal);
-  $('enq-age').value = age !== '' ? String(age) : '';
-}
-
-function normalizeMobile(str) {
-  return (str || '').replace(/\D/g, '');
+function validateMobile(m) {
+  if (!m) return { ok: false, msg: "मोबाईल आवश्यक आहे" };
+  const digits = m.replace(/\D/g, "");
+  if (digits.length !== 10) return { ok: false, msg: "Mobile number 10 digits असावा" };
+  return { ok: true, value: digits };
 }
 
 function validateMobiles(m1, m2) {
-  const a = normalizeMobile(m1);
-  const b = normalizeMobile(m2);
-  if (!a && !b) return { ok: false, msg: 'किमान एक मोबाईल नंबर आवश्यक आहे' };
-  if (a && a.length !== 10) return { ok: false, msg: 'Mobile 1 साठी 10 digits आवश्यक आहेत' };
-  if (b && b.length !== 10) return { ok: false, msg: 'Mobile 2 साठी 10 digits आवश्यक आहेत' };
-  return { ok: true, m1: a, m2: b };
+  const d1 = m1 ? m1.replace(/\D/g, "") : "";
+  const d2 = m2 ? m2.replace(/\D/g, "") : "";
+  if (!d1 && !d2) return { ok: false, msg: "किमान एक मोबाईल नंबर भरा" };
+  if (d1 && d1.length !== 10) return { ok: false, msg: "Mobile 1 10 digits असावा" };
+  if (d2 && d2.length !== 10) return { ok: false, msg: "Mobile 2 10 digits असावा" };
+  return { ok: true, m1: d1, m2: d2 };
 }
 
-function primaryMobile(s) {
-  return s.mobile || s.mobile2 || '';
-}
-
-function isAdmin() {
-  return currentUser && currentUser.role === 'admin';
-}
-
-function showOnly(sectionId) {
-  [
-    'dashboard-section',
-    'courses-section',
-    'student-form',
-    'enquiry-section',
-    'students-list',
-    'reports-section',
-    'settings-section',
-    'backup-section'
-  ].forEach(id => {
-    const el = $(id);
-    if (!el) return;
-    if (id === sectionId) el.classList.remove('hidden');
-    else el.classList.add('hidden');
-  });
-}
-
-function studentFees(studentId) {
-  return fees.filter(f => f.student_id === studentId);
-}
-
-function studentTotals(stu) {
-  const fs = studentFees(stu.id);
-  let paid = 0, disc = 0;
-  fs.forEach(f => {
-    paid += Number(f.amount || 0);
-    disc += Number(f.discount || 0);
-  });
-  const totalFee = Number(stu.total_fee || 0);
-  const balance = totalFee - paid - disc;
-  return { totalFee, paid, disc, balance };
-}
-
-// ---------- Data loading from Supabase ----------
-
-async function loadUsers() {
-  const { data, error } = await supa.from('users').select('*').order('username');
-  if (error) {
-    console.error(error);
-    alert('Error loading users');
-    return;
-  }
-  if (!data || data.length === 0) {
-    const { data: created, error: err2 } = await supa
-      .from('users')
-      .insert({ username: 'admin', password: '1234', role: 'admin' })
-      .select();
-    if (err2) {
-      console.error(err2);
-      alert('Cannot create default admin user');
-      return;
-    }
-    users = created;
-  } else {
-    users = data;
-  }
-}
-
-async function loadCourses() {
-  const { data, error } = await supa.from('courses').select('*').order('name');
-  if (error) {
-    console.error(error);
-    alert('Error loading courses');
-    return;
-  }
-  courses = data || [];
-}
-
-async function loadStudents() {
-  const { data, error } = await supa.from('students').select('*').order('name');
-  if (error) {
-    console.error(error);
-    alert('Error loading students');
-    return;
-  }
-  students = data || [];
-}
-
-async function loadFees() {
-  const { data, error } = await supa.from('fees').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error loading fees');
-    return;
-  }
-  fees = data || [];
-}
-
-async function loadEnquiries() {
-  const { data, error } = await supa
-    .from('enquiries')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) {
-    console.error(error);
-    alert('Error loading enquiries');
-    return;
-  }
-  enquiries = data || [];
-}
-
-async function loadAllData() {
-  await Promise.all([
-    loadUsers(),
-    loadCourses(),
-    loadStudents(),
-    loadFees(),
-    loadEnquiries()
-  ]);
-}
-
-// ---------- LOGIN ----------
-
-$('login-btn').addEventListener('click', tryLogin);
-$('login-password').addEventListener('keydown', e => {
-  if (e.key === 'Enter') tryLogin();
-});
-
-async function tryLogin() {
-  const uname = $('login-username').value.trim() || 'admin';
-  const pass = $('login-password').value;
-
-  const user = users.find(u => u.username === uname && u.password === pass);
-  if (!user) {
-    alert('चुकीचा username किंवा password');
-    return;
-  }
-  currentUser = user;
-  afterLogin();
-}
-
-function afterLogin() {
-  $('login-section').classList.add('hidden');
-  $('app-section').classList.remove('hidden');
-
-  $('current-user-name').textContent = currentUser.username;
-  $('current-user-role').textContent = currentUser.role;
-
-  applyRoleUI();
-  renderCourses();
-  renderCourseSelect();
-  renderEnquiryCourseSelect();
-  renderStudents();
-  renderEnquiries();
-  renderReportCourseOptions();
-  calcStats();
-
-  if (isAdmin()) {
-    showOnly('dashboard-section');
-    renderUsersList();
-  } else {
-    showOnly('students-list');
-  }
-}
-
-// ---------- ROLE-BASED UI + Logout ----------
-
+function isAdmin() { return currentUser && currentUser.role === "admin"; }
 function applyRoleUI() {
-  const adminButtons = [
-    'manage-courses-btn',
-    'settings-btn',
-    'backup-btn'
-  ];
+  const adminButtons = ["manage-courses-btn","settings-btn","backup-btn"];
   adminButtons.forEach(id => {
-    const el = $(id);
-    if (!el) return;
-    if (isAdmin()) el.classList.remove('hidden');
-    else el.classList.add('hidden');
-  });
-
-  const dbBtn = $('dashboard-btn');
-  if (dbBtn) {
-    if (isAdmin()) dbBtn.classList.remove('hidden');
-    else dbBtn.classList.add('hidden');
-  }
-}
-
-const logoutBtn = $('logout-btn');
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    currentUser = null;
-    const m = $('modal');
-    if (m) {
-      m.classList.add('hidden');
-      m.innerHTML = '';
-      m.setAttribute('aria-hidden', 'true');
-    }
-    $('app-section').classList.add('hidden');
-    $('login-section').classList.remove('hidden');
-    $('login-username').value = '';
-    $('login-password').value = '';
-    $('login-username').focus();
+    const el = $(id); if (!el) return;
+    if (isAdmin()) el.classList.remove("hidden"); else el.classList.add("hidden");
   });
 }
 
-// ---------- DASHBOARD ----------
-
-function calcStats() {
-  let totalStudents = students.length;
-  let totalFee = 0, totalPaid = 0, totalDiscount = 0;
-
-  students.forEach(s => {
-    const { totalFee: tf, paid, disc } = studentTotals(s);
-    totalFee += tf;
-    totalPaid += paid;
-    totalDiscount += disc;
+// ============== Show Sections =================
+function showSection(sectionId) {
+  const ids = ["dashboard-section","courses-section","student-form","enquiry-section",
+    "students-list","reports-section","settings-section","backup-section"];
+  ids.forEach(id => {
+    const el = $(id); if (!el) return;
+    if (id === sectionId) el.classList.remove("hidden"); else el.classList.add("hidden");
   });
-
-  const totalBalance = totalFee - totalPaid - totalDiscount;
-
-  $('dash-total-students').textContent = 'Total students: ' + totalStudents;
-  $('dash-total-fee').textContent = 'Total course fee: ₹' + fmt(totalFee);
-  $('dash-total-paid').textContent = 'Total paid: ₹' + fmt(totalPaid);
-  $('dash-total-discount').textContent = 'Total discount: ₹' + fmt(totalDiscount);
-  $('dash-total-balance').textContent = 'Total balance: ₹' + fmt(totalBalance);
 }
 
-// ---------- TOOLBAR NAVIGATION ----------
+// ============== Supabase Loaders =================
+async function loadCourses(){ const {data,error}=await supa.from("courses").select("*").order("name"); if(error){console.error(error);courses=[];}else courses=data||[];}
+async function loadStudents(){ const {data,error}=await supa.from("students").select("*").order("name"); if(error){console.error(error);students=[];}else students=data||[];}
+async function loadEnquiries(){ const {data,error}=await supa.from("enquiries").select("*").order("created_at",{ascending:false}); if(error){console.error(error);enquiries=[];}else enquiries=data||[];}
+async function loadFees(){ const {data,error}=await supa.from("fees").select("*").order("date",{ascending:false}); if(error){console.error(error);fees=[];}else fees=data||[];}
+async function loadUsers(){ const {data,error}=await supa.from("users").select("*").order("username",{ascending:true}); if(error){console.error(error);users=[];}else users=data||[];}
 
-$('backup-btn').addEventListener('click', () => {
-  if (!isAdmin()) {
-    alert('Backup option फक्त admin साठी आहे.');
-    return;
-  }
-  showOnly('backup-section');
-});
+// ============== Renderers =================
+function renderCourses(){
+  const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
+  if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
+  courses.forEach(c=>{
+    if(list){const li=document.createElement("li"); li.textContent=`${c.name} – ₹${c.fee||0}`; list.appendChild(li);}
+    if(csSel){const opt=document.createElement("option"); opt.value=c.id; opt.textContent=`${c.name} (₹${c.fee||0})`; csSel.appendChild(opt);}
+    if(enqSel){const opt2=document.createElement("option"); opt2.value=c.name; opt2.textContent=c.name; enqSel.appendChild(opt2);}
+    if(repSel){const opt3=document.createElement("option"); opt3.value=c.name; opt3.textContent=c.name; repSel.appendChild(opt3);}
+  });
+}
 
-$('dashboard-btn').addEventListener('click', () => {
-  if (!isAdmin()) {
-    alert('Dashboard फक्त admin साठी आहे.');
-    return;
-  }
-  showOnly('dashboard-section');
-  calcStats();
-});
+function renderStudents(){
+  const ul=$("list"); if(!ul) return; const search=$("search").value.trim().toLowerCase(); ul.innerHTML="";
+  students.filter(s=>{
+    if(!search) return true;
+    const hay=[s.name,s.mobile,s.mobile2,s.course_name].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(search);
+  }).forEach(s=>{
+    const tpl=$("student-item-tpl"); if(!tpl) return;
+    const li = tpl.content.firstElementChild.cloneNode(true);
+    li.querySelector(".s-name").textContent = s.name;
+    li.querySelector(".s-meta").textContent = `${s.course_name||""} | Mobile: ${s.mobile||""}` + (s.mobile2? ` / ${s.mobile2}`:"");
+    const delBtn = li.querySelector(".delete-btn");
+    if(delBtn){ if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden"); delBtn.addEventListener("click",()=>deleteStudent(s.id));}
+    const payBtn = li.querySelector(".pay-btn"); if(payBtn) payBtn.addEventListener("click",()=>openFeesModal(s));
+    const viewBtn = li.querySelector(".view-btn"); if(viewBtn) viewBtn.addEventListener("click",()=>viewStudentDetails(s));
+    ul.appendChild(li);
+  });
+}
 
-$('students-list-btn').addEventListener('click', () => {
-  showOnly('students-list');
-  renderStudents();
-});
-
-$('enquiry-btn').addEventListener('click', () => {
-  showOnly('enquiry-section');
-  renderEnquiryCourseSelect();
-  renderEnquiries();
-});
-
-$('manage-courses-btn').addEventListener('click', () => {
-  if (!isAdmin()) {
-    alert('Courses manage करण्याची परवानगी केवळ admin ला आहे.');
-    return;
-  }
-  showOnly('courses-section');
-  renderCourses();
-});
-
-$('add-student-btn').addEventListener('click', () => {
-  showOnly('student-form');
-  renderCourseSelect();
-  clearStudentForm();
-});
-
-$('reports-btn').addEventListener('click', () => {
-  showOnly('reports-section');
-  renderReportCourseOptions();
-});
-
-$('settings-btn').addEventListener('click', () => {
-  if (!isAdmin()) {
-    alert('Settings फक्त admin साठी आहेत.');
-    return;
-  }
-  showOnly('settings-section');
-  renderUsersList();
-});
-
-// ---------- COURSES ----------
-
-$('add-course-btn').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Courses add करण्याची परवानगी केवळ admin ला आहे.');
-    return;
-  }
-  const name = $('course-name').value.trim();
-  const fee = parseFloat($('course-fee').value || '0');
-  if (!name || isNaN(fee)) {
-    alert('Course name आणि योग्य fee टाका');
-    return;
-  }
-  const { data, error } = await supa
-    .from('courses')
-    .insert({ name, fee })
-    .select()
-    .single();
-  if (error) {
-    alert('Course save करताना त्रुटी (duplicate name?)');
-    console.error(error);
-    return;
-  }
-  courses.unshift(data);
-  $('course-name').value = '';
-  $('course-fee').value = '';
-  renderCourses();
-  renderCourseSelect();
-  renderEnquiryCourseSelect();
-  renderReportCourseOptions();
-});
-
-function renderCourses() {
-  const list = $('courses-list');
-  if (!list) return;
-  list.innerHTML = '';
-  courses.forEach(c => {
-    const li = document.createElement('li');
-    li.textContent = `${c.name} — ₹${fmt(c.fee)}`;
-    if (isAdmin()) {
-      const btn = document.createElement('button');
-      btn.textContent = 'Delete';
-      btn.className = 'secondary';
-      btn.style.marginLeft = '0.5rem';
-      btn.addEventListener('click', async () => {
-        if (!confirm('हा course delete करायचा?')) return;
-        const { error } = await supa.from('courses').delete().eq('id', c.id);
-        if (error) {
-          alert('Course delete झाला नाही (कदाचित students जोडलेले आहेत)');
-          console.error(error);
-          return;
-        }
-        courses = courses.filter(x => x.id !== c.id);
-        renderCourses();
-        renderCourseSelect();
-        renderEnquiryCourseSelect();
-        renderReportCourseOptions();
-      });
-      li.appendChild(btn);
-    }
+function renderEnquiries(){
+  const list=$("enquiry-list"); if(!list) return; list.innerHTML="";
+  enquiries.forEach(e=>{
+    const li=document.createElement("li");
+    const d=(e.created_at||"").slice(0,10);
+    const courseName = e.course_name || e.course || "-";
+    li.innerHTML = `
+      <div>
+        <strong>${e.name}</strong><br>
+        ${e.mobile||"-"}${e.mobile2? " / " + e.mobile2 : ""}<br>
+        <span style="color:#7b6a8c;font-size:0.75rem;">${courseName} | Age: ${e.age || "-" } ${d ? '| ' + d : ''}</span>
+      </div>
+      <div class="actions">
+        <button class="success" title="Send WhatsApp" onclick="sendEnquiryWhatsApp('${e.id}','auto')"><i class="ri-whatsapp-line"></i></button>
+        <button class="secondary" title="Convert to Admission" onclick="convertEnquiry('${e.id}')"><i class="ri-user-add-line"></i></button>
+        <button class="danger" title="Delete" onclick="deleteEnquiry('${e.id}')"><i class="ri-delete-bin-line"></i></button>
+      </div>
+    `;
     list.appendChild(li);
   });
 }
 
-function renderCourseSelect() {
-  const sel = $('course-select');
-  if (!sel) return;
-  sel.innerHTML = '';
-  if (courses.length === 0) {
-    const o = document.createElement('option');
-    o.value = '';
-    o.textContent = '-- No courses added --';
-    sel.appendChild(o);
-    return;
-  }
-  courses.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.name;
-    o.textContent = `${c.name} — ₹${fmt(c.fee)}`;
-    sel.appendChild(o);
+function renderUsers(){
+  const ul=$("users-list"); if(!ul) return; ul.innerHTML="";
+  users.forEach(u=>{
+    const li=document.createElement("li"); li.textContent = `${u.username} (${u.role||'data-entry'})`;
+    if(u.username !== "admin"){
+      const btn=document.createElement("button"); btn.className="danger"; btn.textContent="Delete"; btn.addEventListener("click",()=>deleteUser(u.id));
+      li.appendChild(btn);
+    }
+    ul.appendChild(li);
   });
 }
 
-function renderEnquiryCourseSelect() {
-  const sel = $('enq-course-select');
-  if (!sel) return;
-  sel.innerHTML = '';
-  if (courses.length === 0) {
-    const o = document.createElement('option');
-    o.value = '';
-    o.textContent = '-- No courses added --';
-    sel.appendChild(o);
-    return;
-  }
-  courses.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.name;
-    o.textContent = `${c.name} — ₹${fmt(c.fee)}`;
-    sel.appendChild(o);
-  });
+function renderDashboard(){
+  $("dash-total-students").textContent = `Total students: ${students.length}`;
+  const totalFee = students.reduce((s,v)=> s + (v.total_fee||v.course_fee||0), 0);
+  const totalPaid = fees.reduce((s,v)=> s + (v.amount||0), 0);
+  const totalDiscount = fees.reduce((s,v)=> s + (v.discount||0), 0);
+  const balance = totalFee - totalPaid - totalDiscount;
+  $("dash-total-fee").textContent = `Total course fee: ₹${totalFee}`;
+  $("dash-total-paid").textContent = `Total paid: ₹${totalPaid}`;
+  $("dash-total-discount").textContent = `Total discount: ₹${totalDiscount}`;
+  $("dash-total-balance").textContent = `Total balance: ₹${balance}`;
 }
 
-// ---------- STUDENT FORM ----------
+// ============== Students CRUD =================
+async function saveStudent(){
+  const name = $("name").value.trim();
+  const dob = $("dob").value || null;
+  const ageVal = $("age").value.trim();
+  const addr = $("address").value.trim();
+  const m1 = $("mobile").value.trim();
+  const m2 = $("mobile2").value.trim();
+  const courseId = $("course-select").value;
+  const dueDate = $("course-duedate").value;
 
-$('cancel-student-btn').addEventListener('click', () => {
-  showOnly('students-list');
-});
-
-$('save-student-btn').addEventListener('click', async () => {
-  const name = $('name').value.trim();
-  const dob = $('dob').value.trim();
-  const age = $('age').value.trim();
-  const address = $('address').value.trim();
-  const m1Raw = $('mobile').value.trim();
-  const m2Raw = $('mobile2').value.trim();
-  const courseName = $('course-select').value;
-  const dueDate = $('course-duedate').value;
-
-  if (!name || !courseName) {
-    alert('नाव आणि course निवडणे आवश्यक आहे');
-    return;
-  }
-
-  const mobCheck = validateMobiles(m1Raw, m2Raw);
-  if (!mobCheck.ok) {
-    alert(mobCheck.msg);
-    return;
-  }
-
-  const master = courses.find(c => c.name === courseName);
-  const totalFee = master ? Number(master.fee) : 0;
+  if(!name){ alert("नाव आवश्यक आहे"); return; }
+  const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
+  const course = courses.find(c=> String(c.id) === String(courseId));
+  const totalFee = course ? Number(course.fee || 0) : 0;
 
   const payload = {
-    name,
-    dob: dob || null,
-    age: age ? Number(age) : null,
-    address,
-    mobile: mobCheck.m1 || '',
-    mobile2: mobCheck.m2 || '',
-    course_name: courseName,
-    total_fee: totalFee,
-    due_date: dueDate || null
+    name, dob, age: ageVal? Number(ageVal): null,
+    address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
+    course_id: course? course.id : null, course_name: course? course.name : "",
+    course_due_date: dueDate || null, total_fee: totalFee
   };
 
-  const { data, error } = await supa
-    .from('students')
-    .insert(payload)
-    .select()
-    .single();
-  if (error) {
-    alert('Student save करताना त्रुटी');
-    console.error(error);
-    return;
-  }
+  const { data, error } = await supa.from("students").insert(payload).select().single();
+  if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
   students.unshift(data);
-  clearStudentForm();
-  renderStudents();
-  calcStats();
-  showOnly('students-list');
-});
-
-function clearStudentForm() {
-  ['name','dob','age','address','mobile','mobile2','course-duedate']
-    .forEach(id => { if ($(id)) $(id).value = ''; });
+  clearStudentForm(); renderStudents(); renderDashboard(); showSection("students-list");
 }
 
-// ---------- ENQUIRY FORM + LIST ----------
+function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
-$('save-enquiry-btn').addEventListener('click', async () => {
-  const name = $('enq-name').value.trim();
-  const dob = $('enq-dob').value.trim();
-  const m1Raw = $('enq-mobile').value.trim();
-  const m2Raw = $('enq-mobile2').value.trim();
-  const courseName = $('enq-course-select').value;
+async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
 
-  if (!name || !courseName) {
-    alert('नाव आणि course निवडणे आवश्यक आहे');
-    return;
-  }
+// placeholders
+function openFeesModal(student){ alert(`Fees entry screen: ${student.name}`); }
+function viewStudentDetails(student){ alert(`Student: ${student.name}\nCourse: ${student.course_name||""}\nMobile: ${student.mobile}`); }
 
-  const mobCheck = validateMobiles(m1Raw, m2Raw);
-  if (!mobCheck.ok) {
-    alert(mobCheck.msg);
-    return;
-  }
+// ============== Enquiry CRUD & Buttons =================
+async function saveEnquiry(){
+  const name = $("enq-name").value.trim();
+  const dob = $("enq-dob").value || null;
+  const m1 = $("enq-mobile").value.trim();
+  const m2 = $("enq-mobile2").value.trim();
+  const courseName = $("enq-course-select").value;
 
-  // ✅ Age नेहमी कोडने calculate करा
+  if(!name || !courseName){ alert("नाव आणि course निवडणे आवश्यक आहे"); return; }
+  const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
   const ageComputed = calcAgeFromDob(dob);
 
-  const payload = {
-    name,
-    dob: dob || null,
-    age: ageComputed === '' ? null : Number(ageComputed),
-    mobile: mobCheck.m1 || '',
-    mobile2: mobCheck.m2 || '',
-    course_name: courseName
-  };
-
-  const { data, error } = await supa
-    .from('enquiries')
-    .insert(payload)
-    .select()
-    .single();
-  if (error) {
-    alert('Enquiry save करताना त्रुटी');
-    console.error(error);
-    return;
-  }
-  enquiries.unshift(data);
-  clearEnquiryForm();
-  renderEnquiries();
-});
-
-
-$('clear-enquiry-btn').addEventListener('click', () => {
-  clearEnquiryForm();
-});
-
-function clearEnquiryForm() {
-  ['enq-name','enq-dob','enq-age','enq-mobile','enq-mobile2']
-    .forEach(id => { if ($(id)) $(id).value = ''; });
+  const payload = { name, dob, age: ageComputed===""? null: Number(ageComputed), mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"", course_name: courseName };
+  const { data, error } = await supa.from("enquiries").insert(payload).select().single();
+  if(error){ console.error(error); alert("Enquiry save करताना त्रुटी"); return; }
+  enquiries.unshift(data); clearEnquiryForm(); renderEnquiries();
 }
+function clearEnquiryForm(){ ["enq-name","enq-dob","enq-age","enq-mobile","enq-mobile2"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("enq-course-select")) $("enq-course-select").selectedIndex=0; }
 
-$('enq-search').addEventListener('input', e => renderEnquiries(e.target.value));
+async function deleteEnquiry(id){ if(!confirm("ही enquiry delete करायची?")) return; const { error } = await supa.from("enquiries").delete().eq("id", id); if(error){ console.error(error); alert("Error deleting enquiry"); return; } enquiries = enquiries.filter(e=> e.id !== id); renderEnquiries(); }
 
-function renderEnquiries(filter = '') {
-  const list = $('enquiry-list');
-  if (!list) return;
-  list.innerHTML = '';
-
-  const data = enquiries.filter(e => {
-    const text = (
-      e.name + ' ' +
-      (e.course_name || '') + ' ' +
-      (e.mobile || '') + ' ' +
-      (e.mobile2 || '')
-    ).toLowerCase();
-    return text.includes(filter.toLowerCase());
-  });
-
-  data.forEach(e => {
-    const li = document.createElement('li');
-    const d = (e.created_at || '').slice(0, 10);
-    li.innerHTML =
-      `<strong>${e.name}</strong> (${e.course_name || '-'}) — ` +
-      `Age: ${e.age || '-'} — Mob1: ${e.mobile || '-'} — Mob2: ${e.mobile2 || '-'} ` +
-      `${d ? '| Date: ' + d : ''} ` +
-      `<button onclick="convertEnquiry('${e.id}')">Convert to Admission</button>`;
-    list.appendChild(li);
-  });
-}
-
-window.convertEnquiry = async function (id) {
-  const e = enquiries.find(x => x.id === id);
-  if (!e) return;
-  if (!confirm('ही enquiry admission मध्ये convert करायची?')) return;
-
-  const mobCheck = validateMobiles(e.mobile, e.mobile2);
-  if (!mobCheck.ok) {
-    alert('मोबाईल नंबर चुकिचे आहेत, कृपया enquiry edit करा.');
-    return;
-  }
-
-  const master = courses.find(c => c.name === e.course_name);
-  const totalFee = master ? Number(master.fee) : 0;
-
-  const payload = {
-    name: e.name,
-    dob: e.dob || null,
-    age: e.age ? Number(e.age) : null,
-    address: '',
-    mobile: mobCheck.m1 || '',
-    mobile2: mobCheck.m2 || '',
-    course_name: e.course_name,
-    total_fee: totalFee,
-    due_date: null
-  };
-
-  const { data, error } = await supa
-    .from('students')
-    .insert(payload)
-    .select()
-    .single();
-  if (error) {
-    alert('Admission create करताना त्रुटी');
-    console.error(error);
-    return;
-  }
+window.convertEnquiry = async function(id){
+  const e = enquiries.find(x=> x.id === id); if(!e) return; if(!confirm("ही enquiry admission मध्ये convert करायची?")) return;
+  const mobCheck = validateMobiles(e.mobile, e.mobile2); if(!mobCheck.ok){ alert("मोबाईल नंबर चुकिचे आहेत, कृपया enquiry edit करा."); return; }
+  const master = courses.find(c=> c.name === e.course_name); const totalFee = master ? Number(master.fee) : 0;
+  const payload = { name: e.name, dob: e.dob||null, age: e.age?Number(e.age):null, address:"", mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"", course_name: e.course_name, total_fee: totalFee, due_date: null };
+  const { data, error } = await supa.from("students").insert(payload).select().single();
+  if(error){ console.error(error); alert("Admission create करताना त्रुटी"); return; }
   students.unshift(data);
-
-  const { error: delErr } = await supa.from('enquiries').delete().eq('id', id);
-  if (delErr) console.error(delErr);
-  enquiries = enquiries.filter(x => x.id !== id);
-
-  renderStudents();
-  calcStats();
-  renderEnquiries();
-  showOnly('students-list');
-  alert('Enquiry यशस्वीरित्या admission मध्ये convert झाली.');
-};
-
-// ---------- STUDENT LIST ----------
-
-$('search').addEventListener('input', e => renderStudents(e.target.value));
-
-function renderStudents(filter = '') {
-  const tpl = $('student-item-tpl');
-  const list = $('list');
-  if (!tpl || !list) return;
-  list.innerHTML = '';
-
-  const data = students.filter(s => {
-    const text = (
-      s.name + ' ' +
-      (s.course_name || '') + ' ' +
-      (s.mobile || '') + ' ' +
-      (s.mobile2 || '')
-    ).toLowerCase();
-    return text.includes(filter.toLowerCase());
-  });
-
-  data.forEach(s => {
-    const node = tpl.content.cloneNode(true);
-    const nameEl = node.querySelector('.s-name');
-    const metaEl = node.querySelector('.s-meta');
-
-    const { totalFee, paid, disc, balance } = studentTotals(s);
-
-    nameEl.textContent = s.name;
-    metaEl.textContent =
-      `Course: ${s.course_name || '-'} | ` +
-      `मोबाईल1: ${s.mobile || '-'} | मोबाईल2: ${s.mobile2 || '-'} | ` +
-      `Fee: ₹${fmt(totalFee)} | Paid: ₹${fmt(paid)} | Disc: ₹${fmt(disc)} | Balance: ₹${fmt(balance)}`;
-
-    const li = node.querySelector('li');
-    li.querySelector('.pay-btn').addEventListener('click', () => openPay(s.id));
-    li.querySelector('.view-btn').addEventListener('click', () => viewStudent(s.id));
-
-    const delBtn = li.querySelector('.delete-btn');
-    if (isAdmin()) {
-      delBtn.addEventListener('click', async () => {
-        if (!confirm('हा विद्यार्थी delete करायचा?')) return;
-        const { error: fErr } = await supa.from('fees').delete().eq('student_id', s.id);
-        if (fErr) {
-          alert('Fees delete करताना त्रुटी');
-          console.error(fErr);
-          return;
-        }
-        const { error } = await supa.from('students').delete().eq('id', s.id);
-        if (error) {
-          alert('Student delete करताना त्रुटी');
-          console.error(error);
-          return;
-        }
-        fees = fees.filter(f => f.student_id !== s.id);
-        students = students.filter(x => x.id !== s.id);
-        renderStudents();
-        calcStats();
-      });
-    } else {
-      delBtn.style.display = 'none';
-    }
-
-    list.appendChild(li);
-  });
+  const { error: delErr } = await supa.from("enquiries").delete().eq("id", id);
+  if(delErr) console.error(delErr);
+  enquiries = enquiries.filter(x=> x.id !== id);
+  renderStudents(); renderEnquiries(); renderDashboard(); showSection("students-list"); alert("Enquiry admission मध्ये बदलली.");
 }
 
-// ---------- PAYMENTS: ADD ----------
+// ============== Reports basic =================
+function generatePaymentReport(){ $("report-output").innerHTML = "<div>Payment report - placeholder</div>"; lastReportRows = []; }
+function generateBalanceReport(){ $("report-output").innerHTML = "<div>Balance report - placeholder</div>"; lastReportRows = []; }
+function generateDueReport(){ $("report-output").innerHTML = "<div>Due report - placeholder</div>"; lastReportRows = []; }
 
-async function openPay(studentId) {
-  const s = students.find(x => x.id === studentId);
-  if (!s) return;
-
-  const { totalFee, paid, disc, balance } = studentTotals(s);
-
-  const html = `
-    <div class="modal-card" role="dialog" aria-modal="true">
-      <h3>फीस भरा — ${s.name} (${s.course_name || '-'})</h3>
-      <p>Total: ₹${fmt(totalFee)} | Paid: ₹${fmt(paid)} | Disc: ₹${fmt(disc)} | Balance: ₹${fmt(balance)}</p>
-      <input id="pay-amount" placeholder="रक्कम (Received)">
-      <input id="pay-discount" placeholder="Discount (सवलत)">
-      <input id="pay-receipt-no" placeholder="Receipt No">
-      <input id="pay-receipt-date" type="date" placeholder="Receipt Date">
-      <input id="pay-note" placeholder="टीप">
-      <div style="margin-top:.5rem;">
-        <button id="confirm-pay">पुष्टी करा</button>
-        <button id="close-modal" class="secondary">रद्द</button>
-      </div>
-    </div>
-  `;
-  showModal(html);
-
-  $('confirm-pay').addEventListener('click', async () => {
-    const amt = parseFloat($('pay-amount').value || '0');
-    const dsc = parseFloat($('pay-discount').value || '0');
-    const note = $('pay-note').value;
-    const rno = $('pay-receipt-no').value.trim();
-    const rdt = $('pay-receipt-date').value;
-
-    if ((isNaN(amt) || amt <= 0) && (isNaN(dsc) || dsc <= 0)) {
-      alert('किमान Received किंवा Discount काहीतरी टाका');
-      return;
-    }
-
-    const payload = {
-      student_id: s.id,
-      amount: isNaN(amt) ? 0 : amt,
-      discount: isNaN(dsc) ? 0 : dsc,
-      note,
-      date: new Date().toISOString(),
-      receipt_no: rno,
-      receipt_date: rdt || null
-    };
-
-    const { data, error } = await supa
-      .from('fees')
-      .insert(payload)
-      .select()
-      .single();
-    if (error) {
-      alert('Payment save करताना त्रुटी');
-      console.error(error);
-      return;
-    }
-    fees.push(data);
-    renderStudents();
-    calcStats();
-    closeModal();
-  });
-
-  $('close-modal').addEventListener('click', closeModal);
-}
-
-// ---------- VIEW STUDENT & REMINDERS + EDIT FEES ----------
-
-async function viewStudent(id) {
-  const s = students.find(x => x.id === id);
-  if (!s) return;
-
-  const fs = studentFees(s.id);
-  const { totalFee, paid, disc, balance } = studentTotals(s);
-
-  let feesHtml = fs.map(f => `
-    <li>
-      ${new Date(f.date).toLocaleString()} —
-      ₹${fmt(f.amount)} (Disc: ₹${fmt(f.discount || 0)}) —
-      ${f.note || ''}
-      ${f.receipt_no ? ` | Rec#: ${f.receipt_no}` : ''}
-      ${f.receipt_date ? ` | R.Date: ${f.receipt_date}` : ''}
-      <button onclick="editFee('${f.id}')">Edit</button>
-    </li>
-  `).join('');
-  if (!feesHtml) feesHtml = '<li>रेकॉर्ड नाही</li>';
-
-  const msg = [
-    `Namaskar ${s.name},`,
-    'ITCT Fees Reminder',
-    `Course: ${s.course_name || '-'}`,
-    `Total Fee: ₹${fmt(totalFee)}`,
-    `Paid: ₹${fmt(paid)}`,
-    `Discount: ₹${fmt(disc)}`,
-    `Balance: ₹${fmt(balance)}`,
-    'Please pay as early as possible.'
-  ].join('\n');
-
-  const pm = primaryMobile(s);
-
-  const html = `
-    <div class="modal-card" role="dialog" aria-modal="true">
-      <h3>${s.name}</h3>
-      <p>Course: ${s.course_name || '-'}</p>
-      <p>मोबाईल1: ${s.mobile || '-'} | मोबाईल2: ${s.mobile2 || '-'} | पत्ता: ${s.address || '-'}</p>
-      <p>Total Fee: ₹${fmt(totalFee)} | Paid: ₹${fmt(paid)} | Disc: ₹${fmt(disc)} | Balance: ₹${fmt(balance)}</p>
-      <h4>Fees History</h4>
-      <ul>${feesHtml}</ul>
-      <div style="margin-top:.5rem;">
-        <button id="wa-remind">WhatsApp Reminder</button>
-        <button id="sms-remind">SMS Reminder</button>
-        <button id="close-modal" class="secondary">बंद</button>
-      </div>
-    </div>
-  `;
-  showModal(html);
-
-  $('wa-remind').addEventListener('click', () => {
-    if (!pm) { alert('मोबाईल क्रमांक उपलब्ध नाही'); return; }
-    const url = `https://wa.me/91${pm}?text=` + encodeURIComponent(msg);
-    window.open(url, '_blank');
-  });
-  $('sms-remind').addEventListener('click', () => {
-    if (!pm) { alert('मोबाईल क्रमांक उपलब्ध नाही'); return; }
-    const url = `sms:${pm}?body=` + encodeURIComponent(msg);
-    window.location.href = url;
-  });
-  $('close-modal').addEventListener('click', closeModal);
-}
-
-window.editFee = async function (feeId) {
-  const f = fees.find(x => x.id === feeId);
-  if (!f) return;
-  const s = students.find(x => x.id === f.student_id);
-  if (!s) return;
-
-  const html = `
-    <div class="modal-card" role="dialog" aria-modal="true">
-      <h3>Edit Fee — ${s.name}</h3>
-      <input id="edit-amount" placeholder="रक्कम (Received)" value="${f.amount || 0}">
-      <input id="edit-discount" placeholder="Discount (सवलत)" value="${f.discount || 0}">
-      <input id="edit-receipt-no" placeholder="Receipt No" value="${f.receipt_no || ''}">
-      <input id="edit-receipt-date" type="date" placeholder="Receipt Date" value="${f.receipt_date || ''}">
-      <input id="edit-note" placeholder="टीप" value="${f.note || ''}">
-      <div style="margin-top:.5rem;">
-        <button id="save-edit-fee">Save</button>
-        <button id="cancel-edit-fee" class="secondary">Cancel</button>
-      </div>
-    </div>
-  `;
-  showModal(html);
-
-  $('save-edit-fee').addEventListener('click', async () => {
-    const amt = parseFloat($('edit-amount').value || '0');
-    const dsc = parseFloat($('edit-discount').value || '0');
-    const rno = $('edit-receipt-no').value.trim();
-    const rdt = $('edit-receipt-date').value;
-    const note = $('edit-note').value;
-
-    const payload = {
-      amount: isNaN(amt) ? 0 : amt,
-      discount: isNaN(dsc) ? 0 : dsc,
-      receipt_no: rno,
-      receipt_date: rdt || null,
-      note
-    };
-
-    const { data, error } = await supa
-      .from('fees')
-      .update(payload)
-      .eq('id', f.id)
-      .select()
-      .single();
-    if (error) {
-      alert('Fee update करताना त्रुटी');
-      console.error(error);
-      return;
-    }
-    const idx = fees.findIndex(x => x.id === f.id);
-    if (idx !== -1) fees[idx] = data;
-
-    renderStudents();
-    calcStats();
-    viewStudent(s.id);
-  });
-
-  $('cancel-edit-fee').addEventListener('click', () => {
-    viewStudent(s.id);
-  });
-};
-
-// ---------- Modal helpers ----------
-
-function showModal(html) {
-  const m = $('modal');
-  m.innerHTML = html;
-  m.classList.remove('hidden');
-  m.setAttribute('aria-hidden', 'false');
-  const first = m.querySelector('input,button,select,[tabindex]');
-  if (first) first.focus();
-}
-function closeModal() {
-  const m = $('modal');
-  m.classList.add('hidden');
-  m.innerHTML = '';
-  m.setAttribute('aria-hidden', 'true');
-}
-
-// ---------- Reports ----------
-
-function renderReportCourseOptions() {
-  const sel = $('report-course');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">-- सर्व कोर्स --</option>';
-  courses.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.name;
-    o.textContent = c.name;
-    sel.appendChild(o);
-  });
-}
-
-let lastReportRows = [];
-
-$('generate-payment-report').addEventListener('click', () => {
-  const course = $('report-course').value;
-  const from = $('report-from').value;
-  const to = $('report-to').value;
-
-  const rows = [];
-  students.forEach(s => {
-    const fs = studentFees(s.id);
-    fs.forEach(f => {
-      const d = (f.date || '').slice(0, 10);
-      if (course && s.course_name !== course) return;
-      if (from && d < from) return;
-      if (to && d > to) return;
-      rows.push({
-        type: 'payment',
-        date: d,
-        student: s.name,
-        course: s.course_name,
-        amount: Number(f.amount || 0),
-        discount: Number(f.discount || 0),
-        note: f.note || '',
-        mobile: primaryMobile(s),
-        receiptNo: f.receipt_no || '',
-        receiptDate: f.receipt_date || ''
-      });
-    });
-  });
-
-  lastReportRows = rows;
-  const out = rows.length
-    ? rows.map(r =>
-        `<div>${r.date} — ${r.student} (${r.course}) — Rec: ₹${fmt(r.amount)} (Disc: ₹${fmt(r.discount)}) — ${r.note}` +
-        `${r.receiptNo ? ' | Rec#: ' + r.receiptNo : ''}` +
-        `${r.receiptDate ? ' | R.Date: ' + r.receiptDate : ''}</div>`
-      ).join('')
-    : '<div>No records</div>';
-  $('report-output').innerHTML = out;
-});
-
-$('generate-balance-report').addEventListener('click', () => {
-  const course = $('report-course').value;
-  const rows = [];
-
-  students.forEach(s => {
-    if (course && s.course_name !== course) return;
-    const { totalFee, paid, disc, balance } = studentTotals(s);
-    rows.push({
-      type: 'balance',
-      student: s.name,
-      course: s.course_name,
-      fee: totalFee,
-      paid,
-      discount: disc,
-      balance,
-      mobile: primaryMobile(s)
-    });
-  });
-
-  lastReportRows = rows;
-  const out = rows.length
-    ? rows.map(r =>
-        `<div>${r.student} (${r.course}) — Fee: ₹${fmt(r.fee)} | Paid: ₹${fmt(r.paid)} | Disc: ₹${fmt(r.discount)} | Balance: ₹${fmt(r.balance)}</div>`
-      ).join('')
-    : '<div>No records</div>';
-  $('report-output').innerHTML = out;
-});
-
-$('generate-due-report').addEventListener('click', () => {
-  const today = new Date().toISOString().slice(0, 10);
-  const rows = [];
-
-  students.forEach(s => {
-    if (!s.due_date) return;
-    const { totalFee, paid, disc, balance } = studentTotals(s);
-    if (balance <= 0) return;
-    if (s.due_date > today) return;
-    rows.push({
-      type: 'due',
-      student: s.name,
-      course: s.course_name,
-      dueDate: s.due_date,
-      fee: totalFee,
-      paid,
-      discount: disc,
-      balance,
-      mobile: primaryMobile(s)
-    });
-  });
-
-  lastReportRows = rows;
-  const out = rows.length
-    ? rows.map(r =>
-        `<div>${r.dueDate} — ${r.student} (${r.course}) — Balance: ₹${fmt(r.balance)} | Mobile: ${r.mobile}</div>`
-      ).join('')
-    : '<div>No due / overdue records</div>';
-  $('report-output').innerHTML = out;
-});
-
-// Enquiry report
-$('generate-enquiry-report').addEventListener('click', () => {
-  const course = $('report-course').value;
-  const from = $('report-from').value;
-  const to = $('report-to').value;
-
-  const rows = enquiries.filter(e => {
-    if (course && e.course_name !== course) return false;
-    const d = (e.created_at || '').slice(0, 10);
-    if (from && d < from) return false;
-    if (to && d > to) return false;
+function generateEnquiryReport(){
+  const course = $("report-course").value;
+  const from = $("report-from").value;
+  const to = $("report-to").value;
+  const rows = enquiries.filter(e=>{
+    const c = e.course_name || e.course || "";
+    if(course && c !== course) return false;
+    const d = (e.created_at||"").slice(0,10);
+    if(from && d < from) return false;
+    if(to && d > to) return false;
     return true;
-  }).map(e => ({
-    type: 'enquiry',
-    date: (e.created_at || '').slice(0, 10),
-    student: e.name,
-    course: e.course_name,
-    mobile: e.mobile || e.mobile2 || '',
-    age: e.age || ''
-  }));
-
+  }).map(e=>({ type:"enquiry", date:(e.created_at||"").slice(0,10), student:e.name, course:e.course_name||e.course||"", age:e.age||"", mobile1:e.mobile||"", mobile2:e.mobile2||"" }));
   lastReportRows = rows;
-  const out = rows.length
-    ? rows.map(r =>
-        `<div>${r.date} — ${r.student} (${r.course}) — Age: ${r.age} — Mobile: ${r.mobile}</div>`
-      ).join('')
-    : '<div>No enquiry records</div>';
-  $('report-output').innerHTML = out;
-});
-
-// Export CSV for reports
-$('export-csv').addEventListener('click', () => {
-  const rows = lastReportRows || [];
-  if (!rows.length) {
-    alert('Report रिकामी आहे');
-    return;
-  }
-
-  let header;
-  if (rows[0].type === 'payment') {
-    header = 'Date,Student,Course,Amount,Discount,ReceiptNo,ReceiptDate,Note,Mobile';
-  } else if (rows[0].type === 'due') {
-    header = 'DueDate,Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
-  } else if (rows[0].type === 'enquiry') {
-    header = 'Date,Student,Course,Age,Mobile';
-  } else {
-    header = 'Student,Course,TotalFee,Paid,Discount,Balance,Mobile';
-  }
-
-  const csvLines = [header];
-  rows.forEach(r => {
-    if (r.type === 'payment') {
-      csvLines.push(
-        `${r.date},"${r.student}","${r.course}",${fmt(r.amount)},${fmt(r.discount)},"${(r.receiptNo||'').replace(/"/g,'""')}","${(r.receiptDate||'').replace(/"/g,'""')}","${(r.note||'').replace(/"/g,'""')}",${r.mobile}`
-      );
-    } else if (r.type === 'due') {
-      csvLines.push(
-        `${r.dueDate},"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
-      );
-    } else if (r.type === 'enquiry') {
-      csvLines.push(
-        `${r.date},"${r.student}","${r.course}",${r.age},"${r.mobile}"`
-      );
-    } else {
-      csvLines.push(
-        `"${r.student}","${r.course}",${fmt(r.fee)},${fmt(r.paid)},${fmt(r.discount)},${fmt(r.balance)},${r.mobile}`
-      );
-    }
-  });
-
-  const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'itct-report.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-// ---------- BACKUP HELPERS ----------
-
-function downloadCSV(filename, rows) {
-  if (!rows || !rows.length) {
-    alert('No data found to backup.');
-    return;
-  }
-
-  const headers = Object.keys(rows[0]).join(',');
-  const dataLines = rows.map(row =>
-    Object.values(row)
-      .map(v => `"${(v ?? '').toString().replace(/"/g, '""')}"`)
-      .join(',')
-  );
-  const csv = headers + '\n' + dataLines.join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  $("report-output").innerHTML = rows.length ? rows.map(r=> `<div>${r.date} — ${r.student} (${r.course}) — Age: ${r.age} — Mob1: ${r.mobile1||"-"} / Mob2: ${r.mobile2||"-"}</div>`).join("") : "<div>No enquiry records</div>";
 }
 
-$('backup-students').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Backup फक्त admin साठी आहे.');
-    return;
-  }
-  const { data, error } = await supa.from('students').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error fetching students for backup.');
-    return;
-  }
-  downloadCSV('students_backup.csv', data);
-});
-
-$('backup-fees').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Backup फक्त admin साठी आहे.');
-    return;
-  }
-  const { data, error } = await supa.from('fees').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error fetching fees for backup.');
-    return;
-  }
-  downloadCSV('fees_backup.csv', data);
-});
-
-$('backup-courses').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('Backup फक्त admin साठी आहे.');
-    return;
-  }
-  const { data, error } = await supa.from('courses').select('*');
-  if (error) {
-    console.error(error);
-    alert('Error fetching courses for backup.');
-    return;
-  }
-  downloadCSV('courses_backup.csv', data);
-});
-
-// ---------- SETTINGS: PASSWORD + USERS ----------
-
-$('change-pass-btn').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('केवळ admin password बदलू शकतो.');
-    return;
-  }
-  const np = $('new-pass').value;
-  if (!np) {
-    alert('New password टाका');
-    return;
-  }
-  const adminUser = users.find(u => u.username === 'admin' && u.role === 'admin');
-  if (!adminUser) {
-    alert('"admin" user सापडला नाही.');
-    return;
-  }
-
-  const { data, error } = await supa
-    .from('users')
-    .update({ password: np })
-    .eq('id', adminUser.id)
-    .select()
-    .single();
-  if (error) {
-    alert('Password बदलताना त्रुटी');
-    console.error(error);
-    return;
-  }
-  adminUser.password = data.password;
-  $('new-pass').value = '';
-  alert('Admin password बदलला.');
-});
-
-$('add-user-btn').addEventListener('click', async () => {
-  if (!isAdmin()) {
-    alert('नवीन user add करण्याची परवानगी केवळ admin ला आहे.');
-    return;
-  }
-  const uname = $('new-user-username').value.trim();
-  const pass = $('new-user-password').value;
-  const role = $('new-user-role').value;
-
-  if (!uname || !pass) {
-    alert('Username आणि Password टाका');
-    return;
-  }
-  if (users.some(u => u.username === uname)) {
-    alert('हा username आधीपासून अस्तित्वात आहे.');
-    return;
-  }
-
-  const { data, error } = await supa
-    .from('users')
-    .insert({ username: uname, password: pass, role })
-    .select()
-    .single();
-  if (error) {
-    alert('User जतन झाला नाही');
-    console.error(error);
-    return;
-  }
-  users.push(data);
-  $('new-user-username').value = '';
-  $('new-user-password').value = '';
-  $('new-user-role').value = 'data-entry';
-  alert('User जतन झाला.');
-  renderUsersList();
-});
-
-function renderUsersList() {
-  if (!isAdmin()) return;
-  const list = $('users-list');
-  if (!list) return;
-
-  list.innerHTML = '';
-  users.forEach(u => {
-    const li = document.createElement('li');
-    li.textContent = `${u.username} (${u.role})`;
-
-    if (!(u.username === 'admin' && u.role === 'admin')) {
-      const btn = document.createElement('button');
-      btn.textContent = 'Delete';
-      btn.className = 'secondary';
-      btn.style.marginLeft = '0.5rem';
-      btn.addEventListener('click', async () => {
-        if (!confirm(`User "${u.username}" delete करायचा?`)) return;
-        const { error } = await supa.from('users').delete().eq('id', u.id);
-        if (error) {
-          alert('User delete करताना त्रुटी');
-          console.error(error);
-          return;
-        }
-        users = users.filter(x => x.id !== u.id);
-        renderUsersList();
-      });
-      li.appendChild(btn);
-    }
-    list.appendChild(li);
+function exportCSV(){
+  if(!lastReportRows || lastReportRows.length===0){ alert("Report आधी तयार करा"); return; }
+  let header="";
+  const rows = lastReportRows;
+  if(rows[0].type==="enquiry") header="Date,Student,Course,Age,Mobile1,Mobile2";
+  else header="Row";
+  const csvLines=[header];
+  rows.forEach(r=>{
+    if(r.type==="enquiry") csvLines.push(`${r.date},"${r.student}","${r.course}",${r.age},"${r.mobile1}","${r.mobile2}"`);
+    else csvLines.push(`"${JSON.stringify(r).replace(/"/g,'""')}"`);
   });
+  const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "report.csv"; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ---------- INIT ----------
+// ============== Backup helpers =================
+function downloadCSVFile(filename, rows){ const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+function backupStudents(){ const rows=["ID,Name,Course,Mobile,Mobile2"]; students.forEach(s=> rows.push(`${s.id},"${s.name}","${s.course_name||""}","${s.mobile||""}","${s.mobile2||""}"`)); downloadCSVFile("students.csv", rows); }
+function backupFees(){ const rows=["ID,StudentID,Amount,Discount,Date"]; fees.forEach(f=> rows.push(`${f.id},${f.student_id},${f.amount||0},${f.discount||0},"${(f.date||"").slice(0,10)}"`)); downloadCSVFile("fees.csv", rows); }
+function backupCourses(){ const rows=["ID,Name,Fee"]; courses.forEach(c=> rows.push(`${c.id},"${c.name}",${c.fee||0}`)); downloadCSVFile("courses.csv", rows); }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await loadAllData();
-  } catch (e) {
-    console.error(e);
-    alert('Supabase वरून data लोड करताना त्रुटी आली.');
-  }
+// ============== Users & Settings =================
+async function changeAdminPassword(){
+  const newPass = $("new-pass").value.trim(); if(!newPass){ alert("नवीन password भरा"); return; }
+  const { error } = await supa.from("users").update({ password: newPass }).eq("username","admin");
+  if(error){ console.error(error); alert("Password update error"); return; } alert("Admin password बदलला"); $("new-pass").value="";
+}
+async function addUser(){ const uname=$("new-user-username").value.trim(); const pwd=$("new-user-password").value.trim(); const role=$("new-user-role").value; if(!uname||!pwd){ alert("Username आणि Password दोन्ही आवश्यक"); return; } const { data, error } = await supa.from("users").insert({ username: uname, password: pwd, role }).select().single(); if(error){ console.error(error); alert("User add करताना त्रुटी"); return; } users.push(data); renderUsers(); $("new-user-username").value=""; $("new-user-password").value=""; }
+async function deleteUser(id){ if(!confirm("User delete करायचा आहे?")) return; const { error } = await supa.from("users").delete().eq("id", id); if(error){ console.error(error); alert("User delete error"); return; } users = users.filter(u=> u.id !== id); renderUsers(); }
 
-  const dobInput = $('dob');
-  if (dobInput) {
-    dobInput.addEventListener('change', updateAgeFromDob);
-    dobInput.addEventListener('blur', updateAgeFromDob);
-  }
+// ============== WhatsApp Templates & Auto-followup ==============
+const WA_SETTINGS_KEY = 'itct-wa-enquiry-settings';
+const DEFAULT_WA_SETTINGS = {
+  instituteName: 'ITCT Computer Education, Nandurbar',
+  initialTemplate:
+`नमस्कार {NAME},
+आपण {COURSE} कोर्स बद्दल ITCT Computer Education, Nandurbar येथे enquiry केली होती.
+आपल्याला अजून काही माहिती हवी असल्यास जरूर सांगा.`,
+  followupTemplate:
+`नमस्कार {NAME},
+आपल्या {COURSE} कोर्स बाबतच्या enquiry चा follow-up करत आहे.
+आपण admission बद्दल निर्णय घेतला का? काही शंका असल्यास मला कळवा.`,
+  initialDays: 0,
+  followupDays: 3
+};
 
-  const enqDobInput = $('enq-dob');
-  if (enqDobInput) {
-    enqDobInput.addEventListener('change', updateEnqAgeFromDob);
-    enqDobInput.addEventListener('blur', updateEnqAgeFromDob);
-  }
+function loadWaSettings(){ try{ const raw=localStorage.getItem(WA_SETTINGS_KEY); if(!raw) return {...DEFAULT_WA_SETTINGS}; const parsed=JSON.parse(raw); return {...DEFAULT_WA_SETTINGS, ...parsed}; }catch{ return {...DEFAULT_WA_SETTINGS}; } }
+function saveWaSettingsToStorage(settings){ localStorage.setItem(WA_SETTINGS_KEY, JSON.stringify(settings)); }
+
+function initWaSettingsUI(){
+  const s = loadWaSettings();
+  const inst = $('wa-inst-name'); const t1 = $('wa-tpl-initial'); const t2 = $('wa-tpl-followup'); const d1 = $('wa-initial-days'); const d2 = $('wa-followup-days'); const btn = $('wa-save-settings');
+  if(inst) inst.value = s.instituteName; if(t1) t1.value = s.initialTemplate; if(t2) t2.value = s.followupTemplate; if(d1) d1.value = s.initialDays; if(d2) d2.value = s.followupDays;
+  if(btn) btn.addEventListener('click', ()=>{ const updated = { instituteName: inst? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName, initialTemplate: t1? (t1.value.trim()||DEFAULT_WA_SETTINGS.initialTemplate) : DEFAULT_WA_SETTINGS.initialTemplate, followupTemplate: t2? (t2.value.trim()||DEFAULT_WA_SETTINGS.followupTemplate) : DEFAULT_WA_SETTINGS.followupTemplate, initialDays: d1? Number(d1.value||0) : 0, followupDays: d2? Number(d2.value||3) : 3 }; saveWaSettingsToStorage(updated); alert('WhatsApp settings जतन झाले.'); });
+}
+
+function fillTemplate(tpl, enquiry, settings){
+  const mobile = enquiry.mobile || enquiry.mobile2 || '';
+  return tpl.replace(/\{NAME\}/gi, enquiry.name || '')
+            .replace(/\{COURSE\}/gi, enquiry.course_name || enquiry.course || '')
+            .replace(/\{AGE\}/gi, (enquiry.age || '').toString())
+            .replace(/\{MOBILE\}/gi, mobile)
+            .replace(/\{INSTITUTE\}/gi, settings.instituteName || DEFAULT_WA_SETTINGS.instituteName);
+}
+
+function normalizeMobile(m){
+  if(!m) return '';
+  let s = m.replace(/\D/g,'');
+  if(s.startsWith('91') && s.length === 12) s = s.slice(2);
+  if(s.length === 10) return s;
+  return s;
+}
+
+window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
+  const e = enquiries.find(x=> x.id === id); if(!e){ alert("Enquiry सापडली नाही"); return; }
+  const settings = loadWaSettings();
+  const created = e.created_at ? new Date(e.created_at) : new Date();
+  const today = new Date(); const diffDays = Math.floor((today - created) / (1000*60*60*24));
+  let tpl;
+  if(mode === 'initial') tpl = settings.initialTemplate;
+  else if(mode === 'followup') tpl = settings.followupTemplate;
+  else { if(diffDays >= settings.followupDays) tpl = settings.followupTemplate; else tpl = settings.initialTemplate; }
+  const msg = fillTemplate(tpl, e, settings);
+  const mobile = normalizeMobile(e.mobile || e.mobile2);
+  if(!mobile){ alert('मोबाईल नंबर उपलब्ध नाही.'); return; }
+  const url = 'https://wa.me/91' + mobile + '?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+};
+
+// ============== Refresh all =================
+async function refreshAllData(){
+  await Promise.all([loadCourses(), loadStudents(), loadEnquiries(), loadFees(), loadUsers()]);
+  renderCourses(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
+}
+
+// ============== DOM INIT =================
+document.addEventListener('DOMContentLoaded', async ()=> {
+  // Buttons & nav
+  $("login-btn").addEventListener("click", handleLogin);
+  $("logout-btn").addEventListener("click", handleLogout);
+  $("dashboard-btn").addEventListener("click", ()=>{ showSection("dashboard-section"); renderDashboard(); });
+  $("manage-courses-btn").addEventListener("click", ()=> showSection("courses-section"));
+  $("add-student-btn").addEventListener("click", ()=> showSection("student-form"));
+  $("enquiry-btn").addEventListener("click", ()=> showSection("enquiry-section"));
+  $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
+  $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
+  $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
+  $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+
+  // Student
+  $("save-student-btn").addEventListener("click", saveStudent);
+  $("cancel-student-btn").addEventListener("click", ()=>{ clearStudentForm(); showSection("students-list"); });
+  const dobInput = $("dob"); if(dobInput){ dobInput.addEventListener("change", ()=>{ $("age").value = String(calcAgeFromDob(dobInput.value)||""); }); }
+
+  // Enquiry
+  $("save-enquiry-btn").addEventListener("click", saveEnquiry);
+  $("clear-enquiry-btn").addEventListener("click", clearEnquiryForm);
+  const enqDob = $("enq-dob"); if(enqDob){ const fn = ()=>{ const a = calcAgeFromDob(enqDob.value); if($("enq-age")) $("enq-age").value = a; }; enqDob.addEventListener("change", fn); enqDob.addEventListener("blur", fn); }
+  $("enq-search").addEventListener("input", e => {
+    const q = e.target.value.trim().toLowerCase();
+    const filtered = enquiries.filter(en => { const hay = [en.name, en.mobile, en.mobile2, en.course_name].filter(Boolean).join(" ").toLowerCase(); return hay.includes(q); });
+    // quick render
+    const list=$("enquiry-list"); if(!list) return; list.innerHTML=""; filtered.forEach(en=>{
+      const li=document.createElement("li"); const d=(en.created_at||"").slice(0,10); const courseName = en.course_name || "-";
+      li.innerHTML = `<div><strong>${en.name}</strong><br>${en.mobile||"-"}${en.mobile2? " / " + en.mobile2 : ""}<br><span style="color:#7b6a8c;font-size:0.75rem;">${courseName} | Age: ${en.age || "-" } ${d ? '| ' + d : ''}</span></div><div class="actions"><button class="success" onclick="sendEnquiryWhatsApp('${en.id}','auto')"><i class="ri-whatsapp-line"></i></button><button class="secondary" onclick="convertEnquiry('${en.id}')"><i class="ri-user-add-line"></i></button><button class="danger" onclick="deleteEnquiry('${en.id}')"><i class="ri-delete-bin-line"></i></button></div>`; list.appendChild(li);
+    });
+  });
+
+  // Reports
+  $("generate-payment-report").addEventListener("click", generatePaymentReport);
+  $("generate-balance-report").addEventListener("click", generateBalanceReport);
+  $("generate-due-report").addEventListener("click", generateDueReport);
+  $("generate-enquiry-report").addEventListener("click", generateEnquiryReport);
+  $("export-csv").addEventListener("click", exportCSV);
+
+  // Backup
+  $("backup-students").addEventListener("click", backupStudents);
+  $("backup-fees").addEventListener("click", backupFees);
+  $("backup-courses").addEventListener("click", backupCourses);
+
+  // Settings
+  $("change-pass-btn").addEventListener("click", changeAdminPassword);
+  $("add-user-btn").addEventListener("click", addUser);
+
+  // Try auto-login from localStorage
+  const cached = localStorage.getItem("itct_current_user");
+  if(cached){ try{ currentUser = JSON.parse(cached); $("current-user-name").textContent = currentUser.username; $("current-user-role").textContent = currentUser.role; $("login-section").classList.add("hidden"); $("app-section").classList.remove("hidden"); applyRoleUI(); await refreshAllData(); showSection("dashboard-section"); }catch(e){ console.error(e); localStorage.removeItem("itct_current_user"); } }
+
+  // init WhatsApp settings UI
+  initWaSettingsUI();
 });
+
+// ============== Login / Logout (simple username/password against users table) =================
+async function handleLogin(){
+  const username = $("login-username").value.trim(); const password = $("login-password").value.trim();
+  if(!username || !password){ alert("Username आणि Password दोन्ही आवश्यक आहेत"); return; }
+  const { data, error } = await supa.from("users").select("*").eq("username", username).eq("password", password).maybeSingle();
+  if(error){ console.error(error); alert("Login error (server)"); return; }
+  if(!data){ alert("Invalid username / password"); return; }
+  currentUser = { id: data.id, username: data.username, role: data.role || "data-entry" };
+  localStorage.setItem("itct_current_user", JSON.stringify(currentUser));
+  $("current-user-name").textContent = currentUser.username; $("current-user-role").textContent = currentUser.role;
+  $("login-section").classList.add("hidden"); $("app-section").classList.remove("hidden");
+  applyRoleUI(); await refreshAllData(); showSection("dashboard-section");
+}
+function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); $("app-section").classList.add("hidden"); $("login-section").classList.remove("hidden"); }
