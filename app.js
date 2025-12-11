@@ -398,24 +398,25 @@ alert("Fees saved successfully.");
 
       closeModal();
 
-      // refresh local data lists on UI (call your existing loaders)
-      if (typeof loadFees === "function") await loadFees();
-      if (typeof loadStudents === "function") await loadStudents();
-      if (typeof renderStudents === "function") renderStudents();
-      if (typeof renderDashboard === "function") renderDashboard();
+          // refresh local data lists on UI (call your existing loaders)
+    if (typeof loadFees === "function") await loadFees();
+    if (typeof loadStudents === "function") await loadStudents();
+    if (typeof renderStudents === "function") renderStudents();
+    if (typeof renderDashboard === "function") renderDashboard();
 
-    } catch (err) {
-      console.error("Exception while saving fees:", err);
-      alert("Unexpected error while saving fees. Console तपासा.");
-    }
-  });
+  } catch (err) {
+    console.error("Exception while saving fees:", err);
+    alert("Unexpected error while saving fees. Console तपासा.");
+  }
+}); // <-- end of modal save click handler
 
-  // focus on amount
-  setTimeout(()=> {
-    const el = document.getElementById("modal-fees-amount");
-    if (el) el.focus();
-  }, 100);
-}
+// focus on amount
+setTimeout(() => {
+  const el = document.getElementById("modal-fees-amount");
+  if (el) el.focus();
+}, 100);
+
+} // <-- end of openFeesModal function (make sure this closes the function)
 
 // small helper to escape HTML (prevent XSS when injecting name)
 function escapeHtml(str) {
