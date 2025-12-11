@@ -77,24 +77,149 @@ function renderCourses(){
   });
 }
 
-function renderStudents(){
-  const ul=$("list"); if(!ul) return; const search=$("search").value.trim().toLowerCase(); ul.innerHTML="";
-  students.filter(s=>{
+// ---------- Render students with paid/discount/balance and buttons ----------
+async function renderStudents(){
+  const ul = $("list");
+  if(!ul) return;
+  const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
+  ul.innerHTML = "";
+
+  // Ensure fees are loaded if you maintain a local fees array (optional)
+  // await loadFees(); // uncomment if you rely on a cached fees[] array
+
+  // Filter students by search
+  const visible = students.filter(s=>{
     if(!search) return true;
-    const hay=[s.name,s.mobile,s.mobile2,s.course_name].filter(Boolean).join(" ").toLowerCase();
+    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(search);
-  }).forEach(s=>{
-    const tpl=$("student-item-tpl"); if(!tpl) return;
-    const li = tpl.content.firstElementChild.cloneNode(true);
-    li.querySelector(".s-name").textContent = s.name;
-    li.querySelector(".s-meta").textContent = `${s.course_name||""} | Mobile: ${s.mobile||""}` + (s.mobile2? ` / ${s.mobile2}`:"");
-    const delBtn = li.querySelector(".delete-btn");
-    if(delBtn){ if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden"); delBtn.addEventListener("click",()=>deleteStudent(s.id));}
-    const payBtn = li.querySelector(".pay-btn"); if(payBtn) payBtn.addEventListener("click",()=>openFeesModal(s));
-    const viewBtn = li.querySelector(".view-btn"); if(viewBtn) viewBtn.addEventListener("click",()=>viewStudentDetails(s));
-    ul.appendChild(li);
+  });
+
+  for(const s of visible){
+    // calculate paid & discount by querying fees table for this student
+    // (we do it per student — fine for moderate sized lists; can optimize by pre-aggregating)
+    const feeRows = await getFeesForStudent(s.id);
+
+    const totalPaid = feeRows.reduce((acc,r)=> acc + (Number(r.amount||0)), 0);
+    const totalDiscount = feeRows.reduce((acc,r)=> acc + (Number(r.discount||0)), 0);
+    const studentTotalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0); // adjust to your schema field
+
+    const balance = Math.max(0, studentTotalFee - totalPaid - totalDiscount);
+
+    // build item
+    const li = document.createElement("li");
+    li.className = "student-item";
+
+    li.innerHTML = `
+      <div class="info">
+        <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
+        <div class="s-meta">
+          ${escapeHtml(s.course_name || "")} ${s.course_due_date ? `| Due: ${s.course_due_date}` : ""} <br>
+          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
+        </div>
+        <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
+          Fee: ₹${studentTotalFee.toFixed(2)} | Paid: ₹${totalPaid.toFixed(2)} | Discount: ₹${totalDiscount.toFixed(2)} | <strong>Balance: ₹${balance.toFixed(2)}</strong>
+        </div>
+      </div>
+      <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
+        <button class="pay-btn">${"फीस भरा"}</button>
+        <button class="view-btn">पहा</button>
+        <button class="delete-btn admin-only">हटवा</button>
+      </div>
+    `;
+
+    // hook actions
+    const payBtn = li.querySelector(".pay-btn");
+    if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
+
+    const viewBtn = li.querySelector(".view-btn");
+    if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
+// ---------- Get fees rows for a student ----------
+async function getFeesForStudent(studentId){
+  try{
+    // Query Supabase fees table for this student
+    const { data, error } = await (window.supabaseClient || supabase).from("fees")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("date", { ascending: false });
+
+    if(error){
+      console.error("Error fetching fees for student", studentId, error);
+      return [];
+    }
+    return data || [];
+  }catch(err){
+    console.error("Exception fetching fees for student", err);
+    return [];
+  }
+}
+
+// ---------- Show fee history modal for a student ----------
+async function showStudentFeesHistory(studentId){
+  const s = students.find(x => x.id === studentId);
+  if(!s){
+    alert("Student not found");
+    return;
+  }
+
+  const feeRows = await getFeesForStudent(studentId);
+
+  // Build modal UI (uses #modal container from earlier)
+  let modal = document.getElementById("modal");
+  if(!modal){
+    modal = document.createElement("div");
+    modal.id = "modal";
+    document.body.appendChild(modal);
+  }
+  modal.classList.remove("hidden");
+  modal.innerHTML = "";
+
+  const card = document.createElement("div");
+  card.className = "modal-card";
+
+  const rowsHtml = feeRows.length ? feeRows.map(f=>{
+    const dt = (f.date||"").slice(0,10);
+    return `<div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
+              <div><strong>₹${Number(f.amount||0).toFixed(2)}</strong>  <small style="color:var(--muted)">(${dt})</small></div>
+              <div style="font-size:0.85rem;color:var(--muted)">Discount: ₹${Number(f.discount||0).toFixed(2)} ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}</div>
+            </div>`;
+  }).join("") : `<div>No fee records found.</div>`;
+
+  card.innerHTML = `
+    <h3>Fees — ${escapeHtml(s.name || "")}</h3>
+    <div style="margin:6px 0 12px 0; color:var(--muted)">Total fee: ₹${Number(s.total_fee || s.course_fee || 0).toFixed(2)}</div>
+    <div>${rowsHtml}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button id="modal-fees-add" class="btn-primary">Add Fees</button>
+      <button id="modal-close" class="btn-small secondary">Close</button>
+    </div>
+  `;
+
+  modal.appendChild(card);
+
+  // events
+  document.getElementById("modal-close").addEventListener("click", ()=>{
+    modal.classList.add("hidden");
+    modal.innerHTML = "";
+  });
+
+  document.getElementById("modal-fees-add").addEventListener("click", ()=>{
+    modal.classList.add("hidden"); modal.innerHTML = "";
+    // open the existing fees modal for adding payment
+    if(typeof openFeesModal === "function") openFeesModal(s);
+    else alert("Fees modal not found");
   });
 }
+
+    const delBtn = li.querySelector(".delete-btn");
+    if(delBtn){
+      if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden");
+      delBtn.addEventListener("click", ()=> deleteStudent(s.id));
+    }
+
+    ul.appendChild(li);
+  }
+}
+
 
 function renderEnquiries(){
   const list=$("enquiry-list"); if(!list) return; list.innerHTML="";
