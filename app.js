@@ -687,25 +687,7 @@ async function generateEnquiryReport(){
   lastReportRows = rows;
 }
 
-function generatePaymentReport(){ $("report-output").innerHTML = "<div>Payment report - placeholder</div>"; lastReportRows = []; }
-function generateBalanceReport(){ $("report-output").innerHTML = "<div>Balance report - placeholder</div>"; lastReportRows = []; }
-function generateDueReport(){ $("report-output").innerHTML = "<div>Due report - placeholder</div>"; lastReportRows = []; }
 
-function generateEnquiryReport(){
-  const course = $("report-course").value;
-  const from = $("report-from").value;
-  const to = $("report-to").value;
-  const rows = enquiries.filter(e=>{
-    const c = e.course_name || e.course || "";
-    if(course && c !== course) return false;
-    const d = (e.created_at||"").slice(0,10);
-    if(from && d < from) return false;
-    if(to && d > to) return false;
-    return true;
-  }).map(e=>({ type:"enquiry", date:(e.created_at||"").slice(0,10), student:e.name, course:e.course_name||e.course||"", age:e.age||"", mobile1:e.mobile||"", mobile2:e.mobile2||"" }));
-  lastReportRows = rows;
-  $("report-output").innerHTML = rows.length ? rows.map(r=> `<div>${r.date} — ${r.student} (${r.course}) — Age: ${r.age} — Mob1: ${r.mobile1||"-"} / Mob2: ${r.mobile2||"-"}</div>`).join("") : "<div>No enquiry records</div>";
-}
 
 function exportCSV(){
   if(!lastReportRows || lastReportRows.length===0){ alert("Report आधी तयार करा"); return; }
