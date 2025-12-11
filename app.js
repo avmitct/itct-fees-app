@@ -467,6 +467,226 @@ window.convertEnquiry = async function(id){
 }
 
 // ============== Reports basic =================
+// ---------------- Report helpers (replace placeholders) ----------------
+
+async function generatePaymentReport(){
+  // Ensure data is fresh
+  if(typeof loadFees === "function") await loadFees();
+  if(typeof loadStudents === "function") await loadStudents();
+
+  // fees array should be populated
+  const rows = (fees || []).slice().sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  // Build HTML table
+  let html = `<h4>Payment Report (All payments)</h4>`;
+  if(rows.length === 0){
+    $("report-output").innerHTML = `<div>No payment records found.</div>`;
+    lastReportRows = [];
+    return;
+  }
+
+  html += `<div style="overflow:auto"><table class="report-table"><thead><tr>
+    <th>Date</th><th>Receipt</th><th>Student</th><th>Course</th><th>Amount</th><th>Discount</th><th>Collected By</th>
+  </tr></thead><tbody>`;
+
+  const outRows = [];
+  rows.forEach(r=>{
+    const dt = (r.date||"").slice(0,10);
+    const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
+    const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
+    html += `<tr>
+      <td>${dt}</td>
+      <td>${escapeHtml(r.receipt_no||"")}</td>
+      <td>${escapeHtml(studentName)}</td>
+      <td>${escapeHtml(course)}</td>
+      <td style="text-align:right;">${Number(r.amount||0).toFixed(2)}</td>
+      <td style="text-align:right;">${Number(r.discount||0).toFixed(2)}</td>
+      <td>${escapeHtml(r.created_by||r.collected_by||"")}</td>
+    </tr>`;
+    outRows.push({type:"payment", date:dt, receipt:r.receipt_no||"", student:studentName, course:course, amount:Number(r.amount||0), discount:Number(r.discount||0), collected_by:r.created_by||r.collected_by||""});
+  });
+
+  html += `</tbody></table></div>`;
+  $("report-output").innerHTML = html;
+  lastReportRows = outRows;
+}
+
+async function generateBalanceReport(){
+  // Ensure data loaded
+  if(typeof loadStudents === "function") await loadStudents();
+  if(typeof loadFees === "function") await loadFees();
+
+  // Pre-aggregate fees by student id
+  const feeMap = {}; // student_id -> {paid, discount}
+  (fees || []).forEach(f=>{
+    const sid = f.student_id || f.student || "unknown";
+    feeMap[sid] = feeMap[sid] || {paid:0, discount:0};
+    feeMap[sid].paid += Number(f.amount || 0);
+    feeMap[sid].discount += Number(f.discount || 0);
+  });
+
+  // Build rows for each student
+  const rows = (students || []).map(s=>{
+    const sid = s.id;
+    const totalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0);
+    const paid = feeMap[sid] ? feeMap[sid].paid : 0;
+    const discount = feeMap[sid] ? feeMap[sid].discount : 0;
+    const balance = Math.max(0, totalFee - paid - discount);
+    return { student_id: sid, student: s.name||"", course: s.course_name||"", totalFee, paid, discount, balance, mobile: s.mobile||s.mobile1||"" };
+  });
+
+  // Sort by balance desc (show highest due first)
+  rows.sort((a,b)=> b.balance - a.balance);
+
+  // Render
+  let html = `<h4>Balance Report (Outstanding balances)</h4>`;
+  if(rows.length === 0){ $("report-output").innerHTML = `<div>No students found.</div>`; lastReportRows = []; return; }
+
+  html += `<div style="overflow:auto"><table class="report-table"><thead><tr>
+    <th>Student</th><th>Mobile</th><th>Course</th><th>Total Fee</th><th>Paid</th><th>Discount</th><th>Balance</th>
+  </tr></thead><tbody>`;
+
+  const outRows = [];
+  rows.forEach(r=>{
+    html += `<tr>
+      <td>${escapeHtml(r.student)}</td>
+      <td>${escapeHtml(r.mobile)}</td>
+      <td>${escapeHtml(r.course)}</td>
+      <td style="text-align:right;">${r.totalFee.toFixed(2)}</td>
+      <td style="text-align:right;">${r.paid.toFixed(2)}</td>
+      <td style="text-align:right;">${r.discount.toFixed(2)}</td>
+      <td style="text-align:right;color:${r.balance>0? '#e74c3c':'#1fbf75'}">${r.balance.toFixed(2)}</td>
+    </tr>`;
+    outRows.push({type:"balance", student:r.student, mobile:r.mobile, course:r.course, totalFee:r.totalFee, paid:r.paid, discount:r.discount, balance:r.balance});
+  });
+
+  html += `</tbody></table></div>`;
+  $("report-output").innerHTML = html;
+  lastReportRows = outRows;
+}
+
+async function generateDueReport(){
+  // due report shows students whose balance > 0 and optionally within date range (use report-from / report-to)
+  if(typeof loadStudents === "function") await loadStudents();
+  if(typeof loadFees === "function") await loadFees();
+
+  const from = $("report-from") ? $("report-from").value : "";
+  const to = $("report-to") ? $("report-to").value : "";
+
+  // aggregate fees
+  const feeMap = {};
+  (fees || []).forEach(f=>{
+    const sid = f.student_id || f.student || "unknown";
+    feeMap[sid] = feeMap[sid] || {paid:0, discount:0};
+    feeMap[sid].paid += Number(f.amount||0);
+    feeMap[sid].discount += Number(f.discount||0);
+  });
+
+  // select students with balance > 0 AND due date in range (if provided), or overdue if to < today
+  const todayStr = (new Date()).toISOString().slice(0,10);
+  const candidates = (students || []).map(s=>{
+    const totalFee = Number(s.total_fee || s.course_fee || 0);
+    const paid = (feeMap[s.id] && feeMap[s.id].paid) ? feeMap[s.id].paid : 0;
+    const discount = (feeMap[s.id] && feeMap[s.id].discount) ? feeMap[s.id].discount : 0;
+    const balance = Math.max(0, totalFee - paid - discount);
+    return {...s, totalFee, paid, discount, balance};
+  }).filter(s => s.balance > 0);
+
+  // filter by due date if fields present (student.course_due_date or student.due_date)
+  let filtered = candidates;
+  if(from || to){
+    filtered = candidates.filter(s=>{
+      const due = s.course_due_date || s.due_date || "";
+      if(!due) return false;
+      if(from && due < from) return false;
+      if(to && due > to) return false;
+      return true;
+    });
+  }
+
+  // If no date range and to <= today, show overdue (optional)
+  if(!from && !to){
+    // show all with balance
+  }
+
+  // Render
+  let html = `<h4>Due Report</h4>`;
+  if(filtered.length === 0){ $("report-output").innerHTML = `<div>No due records found.</div>`; lastReportRows = []; return; }
+
+  html += `<div style="overflow:auto"><table class="report-table"><thead><tr>
+    <th>Student</th><th>Mobile</th><th>Course</th><th>Due Date</th><th>Total Fee</th><th>Paid</th><th>Discount</th><th>Balance</th>
+  </tr></thead><tbody>`;
+
+  const outRows = [];
+  filtered.forEach(s=>{
+    const due = s.course_due_date || s.due_date || "-";
+    html += `<tr>
+      <td>${escapeHtml(s.name)}</td>
+      <td>${escapeHtml(s.mobile || "")}</td>
+      <td>${escapeHtml(s.course_name || "")}</td>
+      <td>${due}</td>
+      <td style="text-align:right;">${s.totalFee.toFixed(2)}</td>
+      <td style="text-align:right;">${s.paid.toFixed(2)}</td>
+      <td style="text-align:right;">${s.discount.toFixed(2)}</td>
+      <td style="text-align:right;color:#e74c3c;">${s.balance.toFixed(2)}</td>
+    </tr>`;
+    outRows.push({type:"due", student:s.name, mobile:s.mobile, course:s.course_name, due:due, totalFee:s.totalFee, paid:s.paid, discount:s.discount, balance:s.balance});
+  });
+
+  html += `</tbody></table></div>`;
+  $("report-output").innerHTML = html;
+  lastReportRows = outRows;
+}
+
+async function generateEnquiryReport(){
+  // Replaces simplistic placeholder with real filtered list (already had earlier version)
+  if(typeof loadEnquiries === "function") await loadEnquiries();
+
+  const course = $("report-course") ? $("report-course").value : "";
+  const from = $("report-from") ? $("report-from").value : "";
+  const to = $("report-to") ? $("report-to").value : "";
+
+  const rows = (enquiries || []).filter(e=>{
+    if(course && (e.course_name || e.course) !== course) return false;
+    const d = (e.created_at||"").slice(0,10);
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    return true;
+  }).map(e=>({
+    type:"enquiry",
+    date:(e.created_at||"").slice(0,10),
+    student:e.name,
+    course:e.course_name||e.course||"",
+    age:e.age||"",
+    mobile1:e.mobile||"",
+    mobile2:e.mobile2||""
+  }));
+
+  if(rows.length === 0){
+    $("report-output").innerHTML = `<div>No enquiry records.</div>`;
+    lastReportRows = [];
+    return;
+  }
+
+  // render table
+  let html = `<h4>Enquiry Report</h4><div style="overflow:auto"><table class="report-table"><thead><tr>
+    <th>Date</th><th>Name</th><th>Course</th><th>Age</th><th>Mobile 1</th><th>Mobile 2</th>
+  </tr></thead><tbody>`;
+  rows.forEach(r=>{
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${escapeHtml(r.student)}</td>
+      <td>${escapeHtml(r.course)}</td>
+      <td>${escapeHtml(r.age)}</td>
+      <td>${escapeHtml(r.mobile1)}</td>
+      <td>${escapeHtml(r.mobile2)}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+
+  $("report-output").innerHTML = html;
+  lastReportRows = rows;
+}
+
 function generatePaymentReport(){ $("report-output").innerHTML = "<div>Payment report - placeholder</div>"; lastReportRows = []; }
 function generateBalanceReport(){ $("report-output").innerHTML = "<div>Balance report - placeholder</div>"; lastReportRows = []; }
 function generateDueReport(){ $("report-output").innerHTML = "<div>Due report - placeholder</div>"; lastReportRows = []; }
