@@ -176,7 +176,134 @@ function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","c
 async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
 
 // placeholders
-function openFeesModal(student){ alert(`Fees entry screen: ${student.name}`); }
+// Replace your existing openFeesModal function with this one.
+async function openFeesModal(student) {
+  // get supabase client (support different var names)
+  const supaClient = window.supabaseClient || window.supa || (window.supabase && window.supabase.createClient && window.supabase) || null;
+  if (!supaClient) {
+    alert("Supabase client उपलब्ध नाही. console मध्ये तपासा.");
+    console.error("Supabase client not found as window.supabaseClient / window.supa / window.supabase");
+    return;
+  }
+
+  // modal container (index.html मध्ये #modal असावे)
+  let modal = document.getElementById("modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal";
+    document.body.appendChild(modal);
+  }
+  modal.classList.remove("hidden");
+  modal.innerHTML = "";
+
+  // build modal content
+  const card = document.createElement("div");
+  card.className = "modal-card";
+
+  card.innerHTML = `
+    <h3>Fees Entry — ${escapeHtml(student.name || "")}</h3>
+    <div style="margin:8px 0;">
+      <label>Amount (₹)</label>
+      <input id="modal-fees-amount" type="number" step="0.01" placeholder="Amount" class="input">
+    </div>
+    <div style="margin:8px 0;">
+      <label>Discount (₹) — optional</label>
+      <input id="modal-fees-discount" type="number" step="0.01" placeholder="Discount" class="input">
+    </div>
+    <div style="margin:8px 0;">
+      <label>Receipt No (optional)</label>
+      <input id="modal-fees-receipt" type="text" placeholder="Receipt No" class="input">
+    </div>
+    <div style="margin:8px 0;">
+      <label>Date</label>
+      <input id="modal-fees-date" type="date" class="input" value="${(new Date()).toISOString().slice(0,10)}">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button id="modal-fees-save" class="btn-primary">Save</button>
+      <button id="modal-fees-cancel" class="btn-small secondary">Cancel</button>
+    </div>
+  `;
+
+  modal.appendChild(card);
+
+  // helpers
+  function closeModal() {
+    modal.classList.add("hidden");
+    modal.innerHTML = "";
+  }
+  function numericVal(id) {
+    const v = (document.getElementById(id) || {}).value;
+    return v ? Number(v) : 0;
+  }
+
+  // event handlers
+  document.getElementById("modal-fees-cancel").addEventListener("click", closeModal);
+
+  document.getElementById("modal-fees-save").addEventListener("click", async () => {
+    const amount = numericVal("modal-fees-amount");
+    const discount = numericVal("modal-fees-discount");
+    const receipt = (document.getElementById("modal-fees-receipt") || {}).value.trim();
+    const date = (document.getElementById("modal-fees-date") || {}).value;
+
+    if (!amount || amount <= 0) {
+      alert("कृपया वैध रक्कम भरा (Amount > 0).");
+      return;
+    }
+
+    // prepare record for 'fees' table
+    const payload = {
+      student_id: student.id || null,
+      student_name: student.name || "",
+      amount: amount,
+      discount: discount || 0,
+      receipt_no: receipt || null,
+      date: date || new Date().toISOString().slice(0,10),
+      created_by: (window.currentUser && window.currentUser.username) || (student.created_by || null)
+    };
+
+    // insert into Supabase
+    try {
+      const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
+      if (error) {
+        console.error("Fees insert error:", error);
+        alert("Fees save करताना त्रुटी. Console तपासा.");
+        return;
+      }
+
+      // Optionally update student's paid/balance fields (if your schema has those fields)
+      // Example: increment paid sum (uncomment if you maintain student.paid_total field)
+      // await supaClient.from('students').update({ paid_total: student.paid_total + amount }).eq('id', student.id);
+
+      alert("Fees saved successfully.");
+      closeModal();
+
+      // refresh local data lists on UI (call your existing loaders)
+      if (typeof loadFees === "function") await loadFees();
+      if (typeof loadStudents === "function") await loadStudents();
+      if (typeof renderStudents === "function") renderStudents();
+      if (typeof renderDashboard === "function") renderDashboard();
+
+    } catch (err) {
+      console.error("Exception while saving fees:", err);
+      alert("Unexpected error while saving fees. Console तपासा.");
+    }
+  });
+
+  // focus on amount
+  setTimeout(()=> {
+    const el = document.getElementById("modal-fees-amount");
+    if (el) el.focus();
+  }, 100);
+}
+
+// small helper to escape HTML (prevent XSS when injecting name)
+function escapeHtml(str) {
+  if(!str) return "";
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+  });
+}
+
 function viewStudentDetails(student){ alert(`Student: ${student.name}\nCourse: ${student.course_name||""}\nMobile: ${student.mobile}`); }
 
 // ============== Enquiry CRUD & Buttons =================
