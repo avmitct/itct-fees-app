@@ -1,6 +1,6 @@
 // ================= Helper $ & supabase =================
 function $(id) { return document.getElementById(id); }
-const supa = window.supabaseClient;
+const supa = window.supabaseClient || null;
 
 // ============== State =================
 let currentUser = null;
@@ -59,11 +59,31 @@ function showSection(sectionId) {
 }
 
 // ============== Supabase Loaders =================
-async function loadCourses(){ const {data,error}=await supa.from("courses").select("*").order("name"); if(error){console.error(error);courses=[];}else courses=data||[];}
-async function loadStudents(){ const {data,error}=await supa.from("students").select("*").order("name"); if(error){console.error(error);students=[];}else students=data||[];}
-async function loadEnquiries(){ const {data,error}=await supa.from("enquiries").select("*").order("created_at",{ascending:false}); if(error){console.error(error);enquiries=[];}else enquiries=data||[];}
-async function loadFees(){ const {data,error}=await supa.from("fees").select("*").order("date",{ascending:false}); if(error){console.error(error);fees=[];}else fees=data||[];}
-async function loadUsers(){ const {data,error}=await supa.from("users").select("*").order("username",{ascending:true}); if(error){console.error(error);users=[];}else users=data||[];}
+async function loadCourses(){
+  if(!supa) return (courses = []);
+  const {data,error}=await supa.from("courses").select("*").order("name");
+  if(error){console.error(error);courses=[];}else courses=data||[];
+}
+async function loadStudents(){
+  if(!supa) return (students = []);
+  const {data,error}=await supa.from("students").select("*").order("name");
+  if(error){console.error(error);students=[];}else students=data||[];
+}
+async function loadEnquiries(){
+  if(!supa) return (enquiries = []);
+  const {data,error}=await supa.from("enquiries").select("*").order("created_at",{ascending:false});
+  if(error){console.error(error);enquiries=[];}else enquiries=data||[];
+}
+async function loadFees(){
+  if(!supa) return (fees = []);
+  const {data,error}=await supa.from("fees").select("*").order("date",{ascending:false});
+  if(error){console.error(error);fees=[];}else fees=data||[];
+}
+async function loadUsers(){
+  if(!supa) return (users = []);
+  const {data,error}=await supa.from("users").select("*").order("username",{ascending:true});
+  if(error){console.error(error);users=[];}else users=data||[];
+}
 
 // ============== Renderers =================
 function renderCourses(){
@@ -77,67 +97,11 @@ function renderCourses(){
   });
 }
 
-// ---------- Render students with paid/discount/balance and buttons ----------
-async function renderStudents(){
-  const ul = $("list");
-  if(!ul) return;
-  const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
-  ul.innerHTML = "";
-
-  // Ensure fees are loaded if you maintain a local fees array (optional)
-  // await loadFees(); // uncomment if you rely on a cached fees[] array
-
-  // Filter students by search
-  const visible = students.filter(s=>{
-    if(!search) return true;
-    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
-    return hay.includes(search);
-  });
-
-  for(const s of visible){
-    // calculate paid & discount by querying fees table for this student
-    // (we do it per student — fine for moderate sized lists; can optimize by pre-aggregating)
-    const feeRows = await getFeesForStudent(s.id);
-
-    const totalPaid = feeRows.reduce((acc,r)=> acc + (Number(r.amount||0)), 0);
-    const totalDiscount = feeRows.reduce((acc,r)=> acc + (Number(r.discount||0)), 0);
-    const studentTotalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0); // adjust to your schema field
-
-    const balance = Math.max(0, studentTotalFee - totalPaid - totalDiscount);
-
-    // build item
-    const li = document.createElement("li");
-    li.className = "student-item";
-
-    li.innerHTML = `
-      <div class="info">
-        <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
-        <div class="s-meta">
-          ${escapeHtml(s.course_name || "")} ${s.course_due_date ? `| Due: ${s.course_due_date}` : ""} <br>
-          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
-        </div>
-        <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
-          Fee: ₹${studentTotalFee.toFixed(2)} | Paid: ₹${totalPaid.toFixed(2)} | Discount: ₹${totalDiscount.toFixed(2)} | <strong>Balance: ₹${balance.toFixed(2)}</strong>
-        </div>
-      </div>
-      <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
-        <button class="pay-btn">${"फीस भरा"}</button>
-        <button class="view-btn">पहा</button>
-        <button class="delete-btn admin-only">हटवा</button>
-      </div>
-    `;
-
-    // hook actions
-    const payBtn = li.querySelector(".pay-btn");
-    if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
-
-    const viewBtn = li.querySelector(".view-btn");
-    if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
 // ---------- Get fees rows for a student ----------
 async function getFeesForStudent(studentId){
+  if(!supa) return [];
   try{
-    // Query Supabase fees table for this student
-    const { data, error } = await (window.supabaseClient || supabase).from("fees")
+    const { data, error } = await supa.from("fees")
       .select("*")
       .eq("student_id", studentId)
       .order("date", { ascending: false });
@@ -179,7 +143,7 @@ async function showStudentFeesHistory(studentId){
   const rowsHtml = feeRows.length ? feeRows.map(f=>{
     const dt = (f.date||"").slice(0,10);
     return `<div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
-              <div><strong>₹${Number(f.amount||0).toFixed(2)}</strong>  <small style="color:var(--muted)">(${dt})</small></div>
+              <div><strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>  <small style="color:var(--muted)">(${dt})</small></div>
               <div style="font-size:0.85rem;color:var(--muted)">Discount: ₹${Number(f.discount||0).toFixed(2)} ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}</div>
             </div>`;
   }).join("") : `<div>No fee records found.</div>`;
@@ -197,18 +161,72 @@ async function showStudentFeesHistory(studentId){
   modal.appendChild(card);
 
   // events
-  document.getElementById("modal-close").addEventListener("click", ()=>{
+  const closeBtn = document.getElementById("modal-close");
+  if(closeBtn) closeBtn.addEventListener("click", ()=>{
     modal.classList.add("hidden");
     modal.innerHTML = "";
   });
 
-  document.getElementById("modal-fees-add").addEventListener("click", ()=>{
+  const addBtn = document.getElementById("modal-fees-add");
+  if(addBtn) addBtn.addEventListener("click", ()=>{
     modal.classList.add("hidden"); modal.innerHTML = "";
-    // open the existing fees modal for adding payment
     if(typeof openFeesModal === "function") openFeesModal(s);
     else alert("Fees modal not found");
   });
 }
+
+// ---------- Render students with paid/discount/balance and buttons ----------
+async function renderStudents(){
+  const ul = $("list");
+  if(!ul) return;
+  const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
+  ul.innerHTML = "";
+
+  // Filter students by search
+  const visible = students.filter(s=>{
+    if(!search) return true;
+    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(search);
+  });
+
+  for(const s of visible){
+    // calculate paid & discount by querying fees table for this student
+    const feeRows = await getFeesForStudent(s.id);
+
+    const totalPaid = feeRows.reduce((acc,r)=> acc + (Number(r.amount||r.total_fee||0)), 0);
+    const totalDiscount = feeRows.reduce((acc,r)=> acc + (Number(r.discount||0)), 0);
+    const studentTotalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0); // adjust to your schema field
+
+    const balance = Math.max(0, studentTotalFee - totalPaid - totalDiscount);
+
+    // build item
+    const li = document.createElement("li");
+    li.className = "student-item";
+
+    li.innerHTML = `
+      <div class="info">
+        <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
+        <div class="s-meta">
+          ${escapeHtml(s.course_name || "")} ${s.course_due_date ? `| Due: ${s.course_due_date}` : ""} <br>
+          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
+        </div>
+        <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
+          Fee: ₹${studentTotalFee.toFixed(2)} | Paid: ₹${totalPaid.toFixed(2)} | Discount: ₹${totalDiscount.toFixed(2)} | <strong>Balance: ₹${balance.toFixed(2)}</strong>
+        </div>
+      </div>
+      <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
+        <button class="pay-btn">${"फीस भरा"}</button>
+        <button class="view-btn">पहा</button>
+        <button class="delete-btn admin-only">हटवा</button>
+      </div>
+    `;
+
+    // hook actions
+    const payBtn = li.querySelector(".pay-btn");
+    if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
+
+    const viewBtn = li.querySelector(".view-btn");
+    if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
 
     const delBtn = li.querySelector(".delete-btn");
     if(delBtn){
@@ -258,8 +276,8 @@ function renderUsers(){
 function renderDashboard(){
   $("dash-total-students").textContent = `Total students: ${students.length}`;
   const totalFee = students.reduce((s,v)=> s + (v.total_fee||v.course_fee||0), 0);
-  const totalPaid = fees.reduce((s,v)=> s + (v.amount||0), 0);
-  const totalDiscount = fees.reduce((s,v)=> s + (v.discount||0), 0);
+  const totalPaid = fees.reduce((s,v)=> s + (Number(v.amount||v.total_fee||0)), 0);
+  const totalDiscount = fees.reduce((s,v)=> s + (Number(v.discount||0)), 0);
   const balance = totalFee - totalPaid - totalDiscount;
   $("dash-total-fee").textContent = `Total course fee: ₹${totalFee}`;
   $("dash-total-paid").textContent = `Total paid: ₹${totalPaid}`;
@@ -269,14 +287,16 @@ function renderDashboard(){
 
 // ============== Students CRUD =================
 async function saveStudent(){
-  const name = $("name").value.trim();
-  const dob = $("dob").value || null;
-  const ageVal = $("age").value.trim();
-  const addr = $("address").value.trim();
-  const m1 = $("mobile").value.trim();
-  const m2 = $("mobile2").value.trim();
-  const courseId = $("course-select").value;
-  const dueDate = $("course-duedate").value;
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
+
+  const name = ($("name") || {}).value?.trim() || "";
+  const dob = ($("dob") || {}).value || null;
+  const ageVal = ($("age") || {}).value?.trim() || "";
+  const addr = ($("address") || {}).value?.trim() || "";
+  const m1 = ($("mobile") || {}).value?.trim() || "";
+  const m2 = ($("mobile2") || {}).value?.trim() || "";
+  const courseId = ($("course-select") || {}).value;
+  const dueDate = ($("course-duedate") || {}).value;
 
   if(!name){ alert("नाव आवश्यक आहे"); return; }
   const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
@@ -298,7 +318,7 @@ async function saveStudent(){
 
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
-async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
+async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
 
 // placeholders
 // Replace your existing openFeesModal function with this one.
@@ -362,61 +382,66 @@ async function openFeesModal(student) {
   }
 
   // event handlers
-  document.getElementById("modal-fees-cancel").addEventListener("click", closeModal);
+  const cancelBtn = document.getElementById("modal-fees-cancel");
+  if(cancelBtn) cancelBtn.addEventListener("click", closeModal);
 
-  document.getElementById("modal-fees-save").addEventListener("click", async () => {
-    const amount = numericVal("modal-fees-amount");
-    const discount = numericVal("modal-fees-discount");
-    const receipt = (document.getElementById("modal-fees-receipt") || {}).value.trim();
-    const date = (document.getElementById("modal-fees-date") || {}).value;
+  const saveBtn = document.getElementById("modal-fees-save");
+  if(saveBtn){
+    saveBtn.addEventListener("click", async () => {
+      // wrap in try-catch to avoid unhandled exceptions
+      try {
+        const amount = numericVal("modal-fees-amount");
+        const discount = numericVal("modal-fees-discount");
+        const receipt = (document.getElementById("modal-fees-receipt") || {}).value.trim();
+        const date = (document.getElementById("modal-fees-date") || {}).value;
 
-    if (!amount || amount <= 0) {
-      alert("कृपया वैध रक्कम भरा (Amount > 0).");
-      return;
-    }
+        if (!amount || amount <= 0) {
+          alert("कृपया वैध रक्कम भरा (Amount > 0).");
+          return;
+        }
 
-    // prepare record for 'fees' table
-    // --- INSERT PAYLOAD matching your fees table schema ---
-const payload = {
-  student_id: student.id,          // student.id should be UUID string
-  student_name: student.name || "",
-  total_fee: Number(amount || 0),  // your table uses total_fee for amount
-  discount: Number(discount || 0),
-  receipt_no: receipt || null,     // if column is named receipt_no
-  note: "",                         // optional text
-  date: date || new Date().toISOString()
-};
+        // prepare record for 'fees' table (use column names present in your DB)
+        const payload = {
+          student_id: student.id || null,          // student.id should be UUID string
+          student_name: student.name || "",
+          total_fee: Number(amount || 0),  // your table uses total_fee for amount (as per your schema)
+          discount: Number(discount || 0),
+          receipt_no: receipt || null,
+          note: "",
+          date: date || new Date().toISOString()
+        };
 
-const { data, error } = await supabaseClient.from("fees").insert([payload]).select().single();
-if (error) {
-  console.error("Fees insert error:", error);
-  alert("Fees save करताना त्रुटी — Console तपासा.");
-  return;
-}
-console.log("Fees inserted:", data);
-alert("Fees saved successfully.");
+        // insert into supabase
+        const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
+        if (error) {
+          console.error("Fees insert error:", error);
+          alert("Fees save करताना त्रुटी — Console तपासा.");
+          return;
+        }
+        console.log("Fees inserted:", data);
+        alert("Fees saved successfully.");
 
-      closeModal();
+        closeModal();
 
-          // refresh local data lists on UI (call your existing loaders)
-    if (typeof loadFees === "function") await loadFees();
-    if (typeof loadStudents === "function") await loadStudents();
-    if (typeof renderStudents === "function") renderStudents();
-    if (typeof renderDashboard === "function") renderDashboard();
+        // refresh local data lists on UI (call your existing loaders)
+        if (typeof loadFees === "function") await loadFees();
+        if (typeof loadStudents === "function") await loadStudents();
+        if (typeof renderStudents === "function") renderStudents();
+        if (typeof renderDashboard === "function") renderDashboard();
 
-  } catch (err) {
-    console.error("Exception while saving fees:", err);
-    alert("Unexpected error while saving fees. Console तपासा.");
+      } catch (err) {
+        console.error("Exception while saving fees:", err);
+        alert("Unexpected error while saving fees. Console तपासा.");
+      }
+    });
   }
-}); // <-- end of modal save click handler
 
-// focus on amount
-setTimeout(() => {
-  const el = document.getElementById("modal-fees-amount");
-  if (el) el.focus();
-}, 100);
-
-} // <-- end of openFeesModal function (make sure this closes the function)
+  // focus on amount
+  setTimeout(() => {
+    const el = document.getElementById("modal-fees-amount");
+    if (el) el.focus();
+  }, 100);
+} // <-- end of openFeesModal function
 
 // small helper to escape HTML (prevent XSS when injecting name)
 function escapeHtml(str) {
@@ -430,11 +455,12 @@ function viewStudentDetails(student){ alert(`Student: ${student.name}\nCourse: $
 
 // ============== Enquiry CRUD & Buttons =================
 async function saveEnquiry(){
-  const name = $("enq-name").value.trim();
-  const dob = $("enq-dob").value || null;
-  const m1 = $("enq-mobile").value.trim();
-  const m2 = $("enq-mobile2").value.trim();
-  const courseName = $("enq-course-select").value;
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
+  const name = ($("enq-name") || {}).value?.trim() || "";
+  const dob = ($("enq-dob") || {}).value || null;
+  const m1 = ($("enq-mobile") || {}).value?.trim() || "";
+  const m2 = ($("enq-mobile2") || {}).value?.trim() || "";
+  const courseName = ($("enq-course-select") || {}).value || "";
 
   if(!name || !courseName){ alert("नाव आणि course निवडणे आवश्यक आहे"); return; }
   const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
@@ -447,9 +473,10 @@ async function saveEnquiry(){
 }
 function clearEnquiryForm(){ ["enq-name","enq-dob","enq-age","enq-mobile","enq-mobile2"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("enq-course-select")) $("enq-course-select").selectedIndex=0; }
 
-async function deleteEnquiry(id){ if(!confirm("ही enquiry delete करायची?")) return; const { error } = await supa.from("enquiries").delete().eq("id", id); if(error){ console.error(error); alert("Error deleting enquiry"); return; } enquiries = enquiries.filter(e=> e.id !== id); renderEnquiries(); }
+async function deleteEnquiry(id){ if(!confirm("ही enquiry delete करायची?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("enquiries").delete().eq("id", id); if(error){ console.error(error); alert("Error deleting enquiry"); return; } enquiries = enquiries.filter(e=> e.id !== id); renderEnquiries(); }
 
 window.convertEnquiry = async function(id){
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
   const e = enquiries.find(x=> x.id === id); if(!e) return; if(!confirm("ही enquiry admission मध्ये convert करायची?")) return;
   const mobCheck = validateMobiles(e.mobile, e.mobile2); if(!mobCheck.ok){ alert("मोबाईल नंबर चुकिचे आहेत, कृपया enquiry edit करा."); return; }
   const master = courses.find(c=> c.name === e.course_name); const totalFee = master ? Number(master.fee) : 0;
@@ -464,19 +491,16 @@ window.convertEnquiry = async function(id){
 }
 
 // ============== Reports basic =================
-// ---------------- Report helpers (replace placeholders) ----------------
+// ---------------- Report helpers ----------------
 
 async function generatePaymentReport(){
-  // Ensure data is fresh
   if(typeof loadFees === "function") await loadFees();
   if(typeof loadStudents === "function") await loadStudents();
 
-  // fees array should be populated
   const rows = (fees || []).slice().sort((a,b)=> (b.date||"").localeCompare(a.date||""));
-  // Build HTML table
   let html = `<h4>Payment Report (All payments)</h4>`;
   if(rows.length === 0){
-    $("report-output").innerHTML = `<div>No payment records found.</div>`;
+    if($("report-output")) $("report-output").innerHTML = `<div>No payment records found.</div>`;
     lastReportRows = [];
     return;
   }
@@ -495,33 +519,30 @@ async function generatePaymentReport(){
       <td>${escapeHtml(r.receipt_no||"")}</td>
       <td>${escapeHtml(studentName)}</td>
       <td>${escapeHtml(course)}</td>
-      <td style="text-align:right;">${Number(r.amount||0).toFixed(2)}</td>
+      <td style="text-align:right;">${Number(r.amount||r.total_fee||0).toFixed(2)}</td>
       <td style="text-align:right;">${Number(r.discount||0).toFixed(2)}</td>
       <td>${escapeHtml(r.created_by||r.collected_by||"")}</td>
     </tr>`;
-    outRows.push({type:"payment", date:dt, receipt:r.receipt_no||"", student:studentName, course:course, amount:Number(r.amount||0), discount:Number(r.discount||0), collected_by:r.created_by||r.collected_by||""});
+    outRows.push({type:"payment", date:dt, receipt:r.receipt_no||"", student:studentName, course:course, amount:Number(r.amount||r.total_fee||0), discount:Number(r.discount||0), collected_by:r.created_by||r.collected_by||""});
   });
 
   html += `</tbody></table></div>`;
-  $("report-output").innerHTML = html;
+  if($("report-output")) $("report-output").innerHTML = html;
   lastReportRows = outRows;
 }
 
 async function generateBalanceReport(){
-  // Ensure data loaded
   if(typeof loadStudents === "function") await loadStudents();
   if(typeof loadFees === "function") await loadFees();
 
-  // Pre-aggregate fees by student id
-  const feeMap = {}; // student_id -> {paid, discount}
+  const feeMap = {};
   (fees || []).forEach(f=>{
     const sid = f.student_id || f.student || "unknown";
     feeMap[sid] = feeMap[sid] || {paid:0, discount:0};
-    feeMap[sid].paid += Number(f.amount || 0);
+    feeMap[sid].paid += Number(f.amount || f.total_fee || 0);
     feeMap[sid].discount += Number(f.discount || 0);
   });
 
-  // Build rows for each student
   const rows = (students || []).map(s=>{
     const sid = s.id;
     const totalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0);
@@ -531,12 +552,10 @@ async function generateBalanceReport(){
     return { student_id: sid, student: s.name||"", course: s.course_name||"", totalFee, paid, discount, balance, mobile: s.mobile||s.mobile1||"" };
   });
 
-  // Sort by balance desc (show highest due first)
   rows.sort((a,b)=> b.balance - a.balance);
 
-  // Render
   let html = `<h4>Balance Report (Outstanding balances)</h4>`;
-  if(rows.length === 0){ $("report-output").innerHTML = `<div>No students found.</div>`; lastReportRows = []; return; }
+  if(rows.length === 0){ if($("report-output")) $("report-output").innerHTML = `<div>No students found.</div>`; lastReportRows = []; return; }
 
   html += `<div style="overflow:auto"><table class="report-table"><thead><tr>
     <th>Student</th><th>Mobile</th><th>Course</th><th>Total Fee</th><th>Paid</th><th>Discount</th><th>Balance</th>
@@ -557,29 +576,25 @@ async function generateBalanceReport(){
   });
 
   html += `</tbody></table></div>`;
-  $("report-output").innerHTML = html;
+  if($("report-output")) $("report-output").innerHTML = html;
   lastReportRows = outRows;
 }
 
 async function generateDueReport(){
-  // due report shows students whose balance > 0 and optionally within date range (use report-from / report-to)
   if(typeof loadStudents === "function") await loadStudents();
   if(typeof loadFees === "function") await loadFees();
 
   const from = $("report-from") ? $("report-from").value : "";
   const to = $("report-to") ? $("report-to").value : "";
 
-  // aggregate fees
   const feeMap = {};
   (fees || []).forEach(f=>{
     const sid = f.student_id || f.student || "unknown";
     feeMap[sid] = feeMap[sid] || {paid:0, discount:0};
-    feeMap[sid].paid += Number(f.amount||0);
+    feeMap[sid].paid += Number(f.amount||f.total_fee||0);
     feeMap[sid].discount += Number(f.discount||0);
   });
 
-  // select students with balance > 0 AND due date in range (if provided), or overdue if to < today
-  const todayStr = (new Date()).toISOString().slice(0,10);
   const candidates = (students || []).map(s=>{
     const totalFee = Number(s.total_fee || s.course_fee || 0);
     const paid = (feeMap[s.id] && feeMap[s.id].paid) ? feeMap[s.id].paid : 0;
@@ -588,7 +603,6 @@ async function generateDueReport(){
     return {...s, totalFee, paid, discount, balance};
   }).filter(s => s.balance > 0);
 
-  // filter by due date if fields present (student.course_due_date or student.due_date)
   let filtered = candidates;
   if(from || to){
     filtered = candidates.filter(s=>{
@@ -600,14 +614,8 @@ async function generateDueReport(){
     });
   }
 
-  // If no date range and to <= today, show overdue (optional)
-  if(!from && !to){
-    // show all with balance
-  }
-
-  // Render
   let html = `<h4>Due Report</h4>`;
-  if(filtered.length === 0){ $("report-output").innerHTML = `<div>No due records found.</div>`; lastReportRows = []; return; }
+  if(filtered.length === 0){ if($("report-output")) $("report-output").innerHTML = `<div>No due records found.</div>`; lastReportRows = []; return; }
 
   html += `<div style="overflow:auto"><table class="report-table"><thead><tr>
     <th>Student</th><th>Mobile</th><th>Course</th><th>Due Date</th><th>Total Fee</th><th>Paid</th><th>Discount</th><th>Balance</th>
@@ -630,12 +638,11 @@ async function generateDueReport(){
   });
 
   html += `</tbody></table></div>`;
-  $("report-output").innerHTML = html;
+  if($("report-output")) $("report-output").innerHTML = html;
   lastReportRows = outRows;
 }
 
 async function generateEnquiryReport(){
-  // Replaces simplistic placeholder with real filtered list (already had earlier version)
   if(typeof loadEnquiries === "function") await loadEnquiries();
 
   const course = $("report-course") ? $("report-course").value : "";
@@ -659,12 +666,11 @@ async function generateEnquiryReport(){
   }));
 
   if(rows.length === 0){
-    $("report-output").innerHTML = `<div>No enquiry records.</div>`;
+    if($("report-output")) $("report-output").innerHTML = `<div>No enquiry records.</div>`;
     lastReportRows = [];
     return;
   }
 
-  // render table
   let html = `<h4>Enquiry Report</h4><div style="overflow:auto"><table class="report-table"><thead><tr>
     <th>Date</th><th>Name</th><th>Course</th><th>Age</th><th>Mobile 1</th><th>Mobile 2</th>
   </tr></thead><tbody>`;
@@ -680,11 +686,9 @@ async function generateEnquiryReport(){
   });
   html += `</tbody></table></div>`;
 
-  $("report-output").innerHTML = html;
+  if($("report-output")) $("report-output").innerHTML = html;
   lastReportRows = rows;
 }
-
-
 
 function exportCSV(){
   if(!lastReportRows || lastReportRows.length===0){ alert("Report आधी तयार करा"); return; }
@@ -705,17 +709,27 @@ function exportCSV(){
 // ============== Backup helpers =================
 function downloadCSVFile(filename, rows){ const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
 function backupStudents(){ const rows=["ID,Name,Course,Mobile,Mobile2"]; students.forEach(s=> rows.push(`${s.id},"${s.name}","${s.course_name||""}","${s.mobile||""}","${s.mobile2||""}"`)); downloadCSVFile("students.csv", rows); }
-function backupFees(){ const rows=["ID,StudentID,Amount,Discount,Date"]; fees.forEach(f=> rows.push(`${f.id},${f.student_id},${f.amount||0},${f.discount||0},"${(f.date||"").slice(0,10)}"`)); downloadCSVFile("fees.csv", rows); }
+function backupFees(){ const rows=["ID,StudentID,Amount,Discount,Date"]; fees.forEach(f=> rows.push(`${f.id},${f.student_id},${f.amount||f.total_fee||0},${f.discount||0},"${(f.date||"").slice(0,10)}"`)); downloadCSVFile("fees.csv", rows); }
 function backupCourses(){ const rows=["ID,Name,Fee"]; courses.forEach(c=> rows.push(`${c.id},"${c.name}",${c.fee||0}`)); downloadCSVFile("courses.csv", rows); }
 
 // ============== Users & Settings =================
 async function changeAdminPassword(){
-  const newPass = $("new-pass").value.trim(); if(!newPass){ alert("नवीन password भरा"); return; }
+  const newPass = ($("new-pass") || {}).value?.trim();
+  if(!newPass){ alert("नवीन password भरा"); return; }
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
   const { error } = await supa.from("users").update({ password: newPass }).eq("username","admin");
-  if(error){ console.error(error); alert("Password update error"); return; } alert("Admin password बदलला"); $("new-pass").value="";
+  if(error){ console.error(error); alert("Password update error"); return; } alert("Admin password बदलला"); if($("new-pass")) $("new-pass").value="";
 }
-async function addUser(){ const uname=$("new-user-username").value.trim(); const pwd=$("new-user-password").value.trim(); const role=$("new-user-role").value; if(!uname||!pwd){ alert("Username आणि Password दोन्ही आवश्यक"); return; } const { data, error } = await supa.from("users").insert({ username: uname, password: pwd, role }).select().single(); if(error){ console.error(error); alert("User add करताना त्रुटी"); return; } users.push(data); renderUsers(); $("new-user-username").value=""; $("new-user-password").value=""; }
-async function deleteUser(id){ if(!confirm("User delete करायचा आहे?")) return; const { error } = await supa.from("users").delete().eq("id", id); if(error){ console.error(error); alert("User delete error"); return; } users = users.filter(u=> u.id !== id); renderUsers(); }
+async function addUser(){ 
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
+  const uname=($("new-user-username") || {}).value?.trim() || "";
+  const pwd=($("new-user-password") || {}).value?.trim() || "";
+  const role=($("new-user-role") || {}).value || "data-entry";
+  if(!uname||!pwd){ alert("Username आणि Password दोन्ही आवश्यक"); return; }
+  const { data, error } = await supa.from("users").insert({ username: uname, password: pwd, role }).select().single();
+  if(error){ console.error(error); alert("User add करताना त्रुटी"); return; } users.push(data); renderUsers(); if($("new-user-username")) $("new-user-username").value=""; if($("new-user-password")) $("new-user-password").value="";
+}
+async function deleteUser(id){ if(!confirm("User delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("users").delete().eq("id", id); if(error){ console.error(error); alert("User delete error"); return; } users = users.filter(u=> u.id !== id); renderUsers(); }
 
 // ============== WhatsApp Templates & Auto-followup ==============
 const WA_SETTINGS_KEY = 'itct-wa-enquiry-settings';
@@ -784,72 +798,90 @@ async function refreshAllData(){
 
 // ============== DOM INIT =================
 document.addEventListener('DOMContentLoaded', async ()=> {
-  // Buttons & nav
-  $("login-btn").addEventListener("click", handleLogin);
-  $("logout-btn").addEventListener("click", handleLogout);
-  $("dashboard-btn").addEventListener("click", ()=>{ showSection("dashboard-section"); renderDashboard(); });
-  $("manage-courses-btn").addEventListener("click", ()=> showSection("courses-section"));
-  $("add-student-btn").addEventListener("click", ()=> showSection("student-form"));
-  $("enquiry-btn").addEventListener("click", ()=> showSection("enquiry-section"));
-  $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
-  $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
-  $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
-  $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+  try {
+    // Buttons & nav (guard with $ checks)
+    if($("login-btn")) $("login-btn").addEventListener("click", handleLogin);
+    if($("logout-btn")) $("logout-btn").addEventListener("click", handleLogout);
+    if($("dashboard-btn")) $("dashboard-btn").addEventListener("click", ()=>{ showSection("dashboard-section"); renderDashboard(); });
+    if($("manage-courses-btn")) $("manage-courses-btn").addEventListener("click", ()=> showSection("courses-section"));
+    if($("add-student-btn")) $("add-student-btn").addEventListener("click", ()=> showSection("student-form"));
+    if($("enquiry-btn")) $("enquiry-btn").addEventListener("click", ()=> showSection("enquiry-section"));
+    if($("students-list-btn")) $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
+    if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
+    if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
+    if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
 
-  // Student
-  $("save-student-btn").addEventListener("click", saveStudent);
-  $("cancel-student-btn").addEventListener("click", ()=>{ clearStudentForm(); showSection("students-list"); });
-  const dobInput = $("dob"); if(dobInput){ dobInput.addEventListener("change", ()=>{ $("age").value = String(calcAgeFromDob(dobInput.value)||""); }); }
+    // Student
+    if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
+    if($("cancel-student-btn")) $("cancel-student-btn").addEventListener("click", ()=>{ clearStudentForm(); showSection("students-list"); });
+    const dobInput = $("dob"); if(dobInput){ dobInput.addEventListener("change", ()=>{ if($("age")) $("age").value = String(calcAgeFromDob(dobInput.value)||""); }); }
 
-  // Enquiry
-  $("save-enquiry-btn").addEventListener("click", saveEnquiry);
-  $("clear-enquiry-btn").addEventListener("click", clearEnquiryForm);
-  const enqDob = $("enq-dob"); if(enqDob){ const fn = ()=>{ const a = calcAgeFromDob(enqDob.value); if($("enq-age")) $("enq-age").value = a; }; enqDob.addEventListener("change", fn); enqDob.addEventListener("blur", fn); }
-  $("enq-search").addEventListener("input", e => {
-    const q = e.target.value.trim().toLowerCase();
-    const filtered = enquiries.filter(en => { const hay = [en.name, en.mobile, en.mobile2, en.course_name].filter(Boolean).join(" ").toLowerCase(); return hay.includes(q); });
-    // quick render
-    const list=$("enquiry-list"); if(!list) return; list.innerHTML=""; filtered.forEach(en=>{
-      const li=document.createElement("li"); const d=(en.created_at||"").slice(0,10); const courseName = en.course_name || "-";
-      li.innerHTML = `<div><strong>${en.name}</strong><br>${en.mobile||"-"}${en.mobile2? " / " + en.mobile2 : ""}<br><span style="color:#7b6a8c;font-size:0.75rem;">${courseName} | Age: ${en.age || "-" } ${d ? '| ' + d : ''}</span></div><div class="actions"><button class="success" onclick="sendEnquiryWhatsApp('${en.id}','auto')"><i class="ri-whatsapp-line"></i></button><button class="secondary" onclick="convertEnquiry('${en.id}')"><i class="ri-user-add-line"></i></button><button class="danger" onclick="deleteEnquiry('${en.id}')"><i class="ri-delete-bin-line"></i></button></div>`; list.appendChild(li);
+    // Enquiry
+    if($("save-enquiry-btn")) $("save-enquiry-btn").addEventListener("click", saveEnquiry);
+    if($("clear-enquiry-btn")) $("clear-enquiry-btn").addEventListener("click", clearEnquiryForm);
+    const enqDob = $("enq-dob"); if(enqDob){ const fn = ()=>{ const a = calcAgeFromDob(enqDob.value); if($("enq-age")) $("enq-age").value = a; }; enqDob.addEventListener("change", fn); enqDob.addEventListener("blur", fn); }
+    if($("enq-search")) $("enq-search").addEventListener("input", e => {
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = enquiries.filter(en => { const hay = [en.name, en.mobile, en.mobile2, en.course_name].filter(Boolean).join(" ").toLowerCase(); return hay.includes(q); });
+      const list=$("enquiry-list"); if(!list) return; list.innerHTML=""; filtered.forEach(en=>{
+        const li=document.createElement("li"); const d=(en.created_at||"").slice(0,10); const courseName = en.course_name || "-";
+        li.innerHTML = `<div><strong>${en.name}</strong><br>${en.mobile||"-"}${en.mobile2? " / " + en.mobile2 : ""}<br><span style="color:#7b6a8c;font-size:0.75rem;">${courseName} | Age: ${en.age || "-" } ${d ? '| ' + d : ''}</span></div><div class="actions"><button class="success" onclick="sendEnquiryWhatsApp('${en.id}','auto')"><i class="ri-whatsapp-line"></i></button><button class="secondary" onclick="convertEnquiry('${en.id}')"><i class="ri-user-add-line"></i></button><button class="danger" onclick="deleteEnquiry('${en.id}')"><i class="ri-delete-bin-line"></i></button></div>`; list.appendChild(li);
+      });
     });
-  });
 
-  // Reports
-  $("generate-payment-report").addEventListener("click", generatePaymentReport);
-  $("generate-balance-report").addEventListener("click", generateBalanceReport);
-  $("generate-due-report").addEventListener("click", generateDueReport);
-  $("generate-enquiry-report").addEventListener("click", generateEnquiryReport);
-  $("export-csv").addEventListener("click", exportCSV);
+    // Reports
+    if($("generate-payment-report")) $("generate-payment-report").addEventListener("click", generatePaymentReport);
+    if($("generate-balance-report")) $("generate-balance-report").addEventListener("click", generateBalanceReport);
+    if($("generate-due-report")) $("generate-due-report").addEventListener("click", generateDueReport);
+    if($("generate-enquiry-report")) $("generate-enquiry-report").addEventListener("click", generateEnquiryReport);
+    if($("export-csv")) $("export-csv").addEventListener("click", exportCSV);
 
-  // Backup
-  $("backup-students").addEventListener("click", backupStudents);
-  $("backup-fees").addEventListener("click", backupFees);
-  $("backup-courses").addEventListener("click", backupCourses);
+    // Backup
+    if($("backup-students")) $("backup-students").addEventListener("click", backupStudents);
+    if($("backup-fees")) $("backup-fees").addEventListener("click", backupFees);
+    if($("backup-courses")) $("backup-courses").addEventListener("click", backupCourses);
 
-  // Settings
-  $("change-pass-btn").addEventListener("click", changeAdminPassword);
-  $("add-user-btn").addEventListener("click", addUser);
+    // Settings
+    if($("change-pass-btn")) $("change-pass-btn").addEventListener("click", changeAdminPassword);
+    if($("add-user-btn")) $("add-user-btn").addEventListener("click", addUser);
 
-  // Try auto-login from localStorage
-  const cached = localStorage.getItem("itct_current_user");
-  if(cached){ try{ currentUser = JSON.parse(cached); $("current-user-name").textContent = currentUser.username; $("current-user-role").textContent = currentUser.role; $("login-section").classList.add("hidden"); $("app-section").classList.remove("hidden"); applyRoleUI(); await refreshAllData(); showSection("dashboard-section"); }catch(e){ console.error(e); localStorage.removeItem("itct_current_user"); } }
+    // Try auto-login from localStorage
+    const cached = localStorage.getItem("itct_current_user");
+    if(cached){ 
+      try{ 
+        currentUser = JSON.parse(cached); 
+        if($("current-user-name")) $("current-user-name").textContent = currentUser.username; 
+        if($("current-user-role")) $("current-user-role").textContent = currentUser.role; 
+        if($("login-section")) $("login-section").classList.add("hidden"); 
+        if($("app-section")) $("app-section").classList.remove("hidden"); 
+        applyRoleUI(); await refreshAllData(); showSection("dashboard-section"); 
+      }catch(e){ console.error(e); localStorage.removeItem("itct_current_user"); } 
+    }
 
-  // init WhatsApp settings UI
-  initWaSettingsUI();
+    // init WhatsApp settings UI
+    initWaSettingsUI();
+
+  } catch(e){
+    console.error("DOMContentLoaded init error:", e);
+  }
 });
 
 // ============== Login / Logout (simple username/password against users table) =================
 async function handleLogin(){
-  const username = $("login-username").value.trim(); const password = $("login-password").value.trim();
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
+  const username = ($("login-username") || {}).value?.trim() || "";
+  const password = ($("login-password") || {}).value?.trim() || "";
   if(!username || !password){ alert("Username आणि Password दोन्ही आवश्यक आहेत"); return; }
   const { data, error } = await supa.from("users").select("*").eq("username", username).eq("password", password).maybeSingle();
   if(error){ console.error(error); alert("Login error (server)"); return; }
   if(!data){ alert("Invalid username / password"); return; }
   currentUser = { id: data.id, username: data.username, role: data.role || "data-entry" };
   localStorage.setItem("itct_current_user", JSON.stringify(currentUser));
-  $("current-user-name").textContent = currentUser.username; $("current-user-role").textContent = currentUser.role;
-  $("login-section").classList.add("hidden"); $("app-section").classList.remove("hidden");
+  if($("current-user-name")) $("current-user-name").textContent = currentUser.username;
+  if($("current-user-role")) $("current-user-role").textContent = currentUser.role;
+  if($("login-section")) $("login-section").classList.add("hidden");
+  if($("app-section")) $("app-section").classList.remove("hidden");
   applyRoleUI(); await refreshAllData(); showSection("dashboard-section");
 }
-function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); $("app-section").classList.add("hidden"); $("login-section").classList.remove("hidden"); }
+function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); if($("app-section")) $("app-section").classList.add("hidden"); if($("login-section")) $("login-section").classList.remove("hidden"); }
+
