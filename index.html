@@ -48,7 +48,7 @@
 
       <div class="card-art">
         <!-- SVG Illustration -->
-        <svg viewBox="0 0 140 100">
+        <svg viewBox="0 0 140 100" aria-hidden="true">
           <defs>
             <linearGradient id="gradLogin" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stop-color="#f4a300"/>
@@ -110,7 +110,7 @@
 
         <div class="card-art">
           <!-- SVG Dashboard Illustration -->
-          <svg viewBox="0 0 160 100">
+          <svg viewBox="0 0 160 100" aria-hidden="true">
             <defs>
               <linearGradient id="gradDash" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#9b4dcc"/>
@@ -151,8 +151,8 @@
         <h3><i class="ri-user-3-line"></i> विद्यार्थ्याची माहिती</h3>
 
         <input id="name" placeholder="नाव *">
-        <input id="dob" placeholder="DOB (YYYY-MM-DD)">
-        <input id="age" placeholder="वय">
+        <input id="dob" placeholder="DOB (YYYY-MM-DD)" type="date">
+        <input id="age" placeholder="वय" readonly>
         <input id="address" placeholder="पत्ता">
         <input id="mobile" placeholder="मोबाईल 1 *" maxlength="10">
         <input id="mobile2" placeholder="मोबाईल 2 (optional)" maxlength="10">
@@ -179,7 +179,7 @@
 
           <div class="enq-form">
             <input id="enq-name" placeholder="नाव *">
-            <input id="enq-dob" type="date">
+            <input id="enq-dob" type="date" placeholder="DOB">
             <input id="enq-age" placeholder="वय" readonly>
             <input id="enq-mobile" maxlength="10" placeholder="मोबाईल 1 *">
             <input id="enq-mobile2" maxlength="10" placeholder="मोबाईल 2 (optional)">
@@ -201,21 +201,18 @@
         </div>
 
         <div class="card-art">
-          <!-- SVG Enquiry Illustration -->
-          <svg viewBox="0 0 150 100">
+          <!-- Enquiry illustration -->
+          <svg viewBox="0 0 150 100" aria-hidden="true">
             <defs>
               <linearGradient id="gradEnq" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#f4a300"/>
                 <stop offset="100%" stop-color="#9b4dcc"/>
               </linearGradient>
             </defs>
-
             <rect x="18" y="18" width="114" height="64" rx="10"
                   fill="#fdf7ff" stroke="#9b4dcc" stroke-width="1.5"/>
-
             <rect x="30" y="30" width="90" height="9" rx="4.5" fill="#e8dafd"/>
             <rect x="30" y="45" width="70" height="9" rx="4.5" fill="#fbe1b0"/>
-
             <circle cx="46" cy="72" r="10.5" fill="url(#gradEnq)"/>
           </svg>
         </div>
@@ -252,17 +249,15 @@
 
         <div class="card-art">
           <!-- SVG Reports -->
-          <svg viewBox="0 0 150 100">
+          <svg viewBox="0 0 150 100" aria-hidden="true">
             <defs>
               <linearGradient id="gradRep" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#9b4dcc"/>
                 <stop offset="100%" stop-color="#f4a300"/>
               </linearGradient>
             </defs>
-
             <rect x="18" y="16" width="114" height="68" rx="10"
                   fill="#f7efff" stroke="#9b4dcc" stroke-width="1.5"/>
-
             <rect x="35" y="46" width="10" height="24" rx="2" fill="#e7d7ff"/>
             <rect x="57" y="40" width="10" height="30" rx="2" fill="#f9e0b0"/>
             <rect x="79" y="52" width="10" height="18" rx="2" fill="#e7d7ff"/>
@@ -282,7 +277,7 @@
 
         <div class="card-art">
           <!-- SVG Cloud Backup -->
-          <svg viewBox="0 0 150 100">
+          <svg viewBox="0 0 150 100" aria-hidden="true">
             <defs>
               <linearGradient id="gradCloud" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="#f4a300"/>
@@ -328,6 +323,39 @@
           <p class="note">टीप: Users Supabase मध्ये जतन होतात.</p>
         </div>
 
+        <!-- WhatsApp Templates & Followup -->
+        <div class="settings-block">
+          <h4>📲 WhatsApp Templates & Follow-up</h4>
+
+          <label for="wa-inst-name">Institute name (for message)</label>
+          <input id="wa-inst-name" placeholder="Institute name">
+
+          <label for="wa-tpl-initial">Initial Enquiry Message</label>
+          <textarea id="wa-tpl-initial" rows="3"
+            placeholder="नमस्कार {NAME}, आपण {COURSE} कोर्स बद्दल enquiry केली होती..."></textarea>
+
+          <label for="wa-tpl-followup">Follow-up / Reminder Message</label>
+          <textarea id="wa-tpl-followup" rows="3"
+            placeholder="नमस्कार {NAME}, आपल्या {COURSE} कोर्स बाबतची enquiry चा follow-up..."></textarea>
+
+          <div class="row">
+            <div style="flex:1; min-width:140px;">
+              <label for="wa-initial-days">Initial period (days)</label>
+              <input id="wa-initial-days" type="number" min="0" value="0">
+            </div>
+            <div style="flex:1; min-width:140px;">
+              <label for="wa-followup-days">Follow-up after (days)</label>
+              <input id="wa-followup-days" type="number" min="1" value="3">
+            </div>
+          </div>
+
+          <p class="note">
+            Placeholders: <code>{NAME}</code>, <code>{COURSE}</code>, <code>{AGE}</code>, <code>{MOBILE}</code>, <code>{INSTITUTE}</code>
+          </p>
+
+          <button id="wa-save-settings">Save WhatsApp Settings</button>
+        </div>
+
         <!-- User List -->
         <div class="settings-block">
           <h4>📜 User List</h4>
@@ -360,6 +388,7 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2.48.0/dist/umd/supabase.js"></script>
 
   <script>
+    // Put your Supabase project URL & ANON key here (these were in older file)
     const SUPABASE_URL  = "https://lbepbdnoowbestqhfupm.supabase.co";
     const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZXBiZG5vb3diZXN0cWhmdXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwODMxMjcsImV4cCI6MjA4MDY1OTEyN30.wH-fEGF2Ni1iUkxmvzTy2A6Y5kTUmBUMPJKQMCxcYbE";
     window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
