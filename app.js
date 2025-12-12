@@ -401,15 +401,16 @@ async function openFeesModal(student) {
         }
 
         // prepare record for 'fees' table (use column names present in your DB)
-        const payload = {
-          student_id: student.id || null,          // student.id should be UUID string
-          student_name: student.name || "",
-          total_fee: Number(amount || 0),  // your table uses total_fee for amount (as per your schema)
-          discount: Number(discount || 0),
-          receipt_no: receipt || null,
-          note: "",
-          date: date || new Date().toISOString()
-        };
+        // --- payload matching typical fees table columns (no student_name) ---
+const payload = {
+  student_id: student.id || null,               // required: id from students table (uuid)
+  total_fee: Number(amount || 0),               // amount paid
+  discount: Number(discount || 0),              // discount
+  receipt_no: receipt || null,                  // receipt number, optional
+  note: "",                                     // optional note
+  date: date || new Date().toISOString()        // timestamp
+};
+
 
         // insert into supabase
         const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
