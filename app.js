@@ -207,7 +207,7 @@ async function renderStudents(){
       <div class="info">
         <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
         <div class="s-meta">
-          ${escapeHtml(s.course_name || "")} ${s.course_due_date ? `| Due: ${s.course_due_date}` : ""} <br>
+          ${escapeHtml(s.course_name || "")} ${s.due_date ? `| Due: ${s.due_date}` : ""} <br>
           Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
         </div>
         <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
@@ -307,7 +307,7 @@ async function saveStudent(){
     name, dob, age: ageVal? Number(ageVal): null,
     address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
     course_id: course? course.id : null, course_name: course? course.name : "",
-    course_due_date: dueDate || null, total_fee: totalFee
+    due_date: dueDate || null, total_fee: totalFee
   };
 
   const { data, error } = await supa.from("students").insert(payload).select().single();
@@ -607,7 +607,7 @@ async function generateDueReport(){
   let filtered = candidates;
   if(from || to){
     filtered = candidates.filter(s=>{
-      const due = s.course_due_date || s.due_date || "";
+      const due = s.due_date || s.due_date || "";
       if(!due) return false;
       if(from && due < from) return false;
       if(to && due > to) return false;
@@ -624,7 +624,7 @@ async function generateDueReport(){
 
   const outRows = [];
   filtered.forEach(s=>{
-    const due = s.course_due_date || s.due_date || "-";
+    const due = s.due_date || s.due_date || "-";
     html += `<tr>
       <td>${escapeHtml(s.name)}</td>
       <td>${escapeHtml(s.mobile || "")}</td>
