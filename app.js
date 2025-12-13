@@ -798,19 +798,49 @@ async function refreshAllData(){
 }
 
 // ============== DOM INIT =================
-document.addEventListener('DOMContentLoaded', async ()=> {
+document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Buttons & nav (guard with $ checks)
-    if($("login-btn")) $("login-btn").addEventListener("click", handleLogin);
-    if($("logout-btn")) $("logout-btn").addEventListener("click", handleLogout);
-    if($("dashboard-btn")) $("dashboard-btn").addEventListener("click", ()=>{ showSection("dashboard-section"); renderDashboard(); });
-    if($("manage-courses-btn")) $("manage-courses-btn").addEventListener("click", ()=> showSection("courses-section"));
-    if($("add-student-btn")) $("add-student-btn").addEventListener("click", ()=> showSection("student-form"));
-    if($("enquiry-btn")) $("enquiry-btn").addEventListener("click", ()=> showSection("enquiry-section"));
-    if($("students-list-btn")) $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
-    if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
-    if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
-    if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+
+    // 🔹 BUTTON EVENTS
+    if ($("save-course-btn"))
+      $("save-course-btn").addEventListener("click", saveCourse);
+
+    if ($("save-student-btn"))
+      $("save-student-btn").addEventListener("click", saveStudent);
+
+    if ($("save-enquiry-btn"))
+      $("save-enquiry-btn").addEventListener("click", saveEnquiry);
+
+    // 🔹 NAVIGATION
+    if ($("dashboard-btn"))
+      $("dashboard-btn").addEventListener("click", () =>
+        showSection("dashboard-section")
+      );
+
+    if ($("manage-courses-btn"))
+      $("manage-courses-btn").addEventListener("click", () =>
+        showSection("courses-section")
+      );
+
+    // 🔹 AUTO LOGIN
+    tryAutoLogin();
+
+    // 🔹 LOAD DATA IF LOGGED IN
+    if (currentUser) {
+      await loadCourses();
+      await loadStudents();
+      await loadEnquiries();
+      await loadFees();
+      renderCourses();
+      renderStudents();
+      renderEnquiries();
+    }
+
+  } catch (e) {
+    console.error("DOMContentLoaded init error:", e);
+  }
+});
+
 
     // Student
     if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
@@ -862,9 +892,7 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     // init WhatsApp settings UI
     initWaSettingsUI();
 
-  } catch(e){
-    console.error("DOMContentLoaded init error:", e);
-  }
+  } catch(e)
 });
 
 // ============== Login / Logout (simple username/password against users table) =================
