@@ -413,20 +413,7 @@ const payload = {
 
 
         // insert into supabase
-        const { error } = await supabase
-  .from('students')
-  .insert([{
-    name: nameInput.value,
-    dob: dobInput.value,
-    age: ageInput.value,
-    address: addressInput.value,
-    mobile: mobileInput.value,
-    mobile2: mobile2Input.value,
-    course_name: courseSelect.value, // ✅ FIX
-    total_fee: totalFeeInput.value,
-    due_date: dueDateInput.value
-  }]);
-
+        
         const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
         if (error) {
           console.error("Fees insert error:", error);
