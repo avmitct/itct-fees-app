@@ -306,7 +306,7 @@ async function saveStudent(){
   const payload = {
     name, dob, age: ageVal? Number(ageVal): null,
     address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_id: course? course.id : null, course_name: course? course.name : "",
+    course_name: course? course.id : null, course_name: course? course.name : "",
     due_date: dueDate || null, total_fee: totalFee
   };
 
@@ -413,6 +413,20 @@ const payload = {
 
 
         // insert into supabase
+        const { error } = await supabase
+  .from('students')
+  .insert([{
+    name: nameInput.value,
+    dob: dobInput.value,
+    age: ageInput.value,
+    address: addressInput.value,
+    mobile: mobileInput.value,
+    mobile2: mobile2Input.value,
+    course_name: courseSelect.value, // ✅ FIX
+    total_fee: totalFeeInput.value,
+    due_date: dueDateInput.value
+  }]);
+
         const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
         if (error) {
           console.error("Fees insert error:", error);
