@@ -968,26 +968,6 @@ function isDuplicateCourse(name){
   return courses.some(c => c.name.toLowerCase() === name.toLowerCase());
 }
 
-// ===== EDIT COURSE =====
-async function editCourse(id){
-  const course = courses.find(c=>c.id===id);
-  if(!course) return;
-  const newName = prompt("Edit course name:", course.name);
-  if(!newName) return;
-  const newFee = prompt("Edit fee:", course.fee);
-  if(isDuplicateCourse(newName) && newName.toLowerCase() !== course.name.toLowerCase()){
-    alert("Course already exists");
-    return;
-  }
-  const {data,error} = await supa.from("courses")
-    .update({name:newName, fee:Number(newFee||0)})
-    .eq("id", id)
-    .select()
-    .single();
-  if(error){ alert(error.message); return; }
-  Object.assign(course, data);
-  renderCourses(); populateCourseDropdowns();
-}
 
 // ===== DELETE COURSE =====
 async function deleteCourse(id){
@@ -998,50 +978,6 @@ async function deleteCourse(id){
   renderCourses(); populateCourseDropdowns();
 }
 
-// ===== EDIT COURSE (FIXED: name + fee) =====
-async function editCourse(id){
-  const course = courses.find(c=>c.id===id);
-  if(!course) return;
-
-  const newName = prompt("Edit course name:", course.name);
-  if(newName === null) return;
-
-  const newFeeStr = prompt("Edit course fee:", course.fee ?? 0);
-  if(newFeeStr === null) return;
-
-  const newNameTrim = newName.trim();
-  const newFee = Number(newFeeStr);
-
-  if(!newNameTrim){
-    alert("Course name cannot be empty");
-    return;
-  }
-
-  if(
-    courses.some(c =>
-      c.id !== id &&
-      c.name.toLowerCase() === newNameTrim.toLowerCase()
-    )
-  ){
-    alert("Course already exists");
-    return;
-  }
-
-  const {data,error} = await supa
-    .from("courses")
-    .update({ name: newNameTrim, fee: isNaN(newFee)?0:newFee })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if(error){
-    alert(error.message);
-    return;
-  }
-
-  Object.assign(course, data);
-  renderCourses();
-}
 
 // ===== POPULATE COURSE DROPDOWNS =====
 function populateCourseDropdowns(){
@@ -1059,4 +995,71 @@ function populateCourseDropdowns(){
       sel.appendChild(opt);
     });
   });
+}
+
+
+// ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
+async function editCourse(id){
+  try{
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
+
+    // Ask name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
+
+    // Ask fee
+    const feeDefault = (course.fee !== null && course.fee !== undefined) ? course.fee : 0;
+    const newFeeInput = prompt("Edit course fee:", feeDefault);
+    if(newFeeInput === null) return;
+
+    const newFee = Number(newFeeInput);
+    if(isNaN(newFee)){
+      alert("Fee must be a number");
+      return;
+    }
+
+    // Prevent duplicate names (excluding self)
+    const duplicate = courses.some(c =>
+      String(c.id) !== String(id) &&
+      c.name.toLowerCase() === nameTrim.toLowerCase()
+    );
+    if(duplicate){
+      alert("Course already exists");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .update({ name: nameTrim, fee: newFee })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if(error){
+      console.error("Edit course error:", error);
+      alert(error.message);
+      return;
+    }
+
+    // Update local cache
+    course.name = data.name;
+    course.fee = data.fee;
+
+    renderCourses();
+    populateCourseDropdowns();
+
+    alert("Course updated successfully");
+  }catch(e){
+    console.error("editCourse exception:", e);
+    alert("Unexpected error while editing course");
+  }
 }
