@@ -87,6 +87,7 @@ async function loadUsers(){
 
 // ============== Renderers =================
 function renderCourses(){
+
   const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
   if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
   courses.forEach(c=>{
@@ -899,6 +900,10 @@ window.addEventListener("load", () => {
 
 // ===== ADD COURSE (FIXED) =====
 async function saveCourse() {
+  // Prevent duplicate
+  const existing = courses.some(c=>c.name.toLowerCase() === (document.getElementById("course-name")?.value||"").trim().toLowerCase());
+  if(existing){ alert("Course already exists"); return; }
+
   try {
     if (!supa) {
       alert("Supabase client उपलब्ध नाही");
@@ -940,4 +945,55 @@ async function saveCourse() {
     console.error("saveCourse exception:", e);
     alert("Unexpected error while saving course");
   }
+}
+
+// ===== ENHANCED COURSES RENDER (Edit/Delete) =====
+function renderCourses(){
+  const ul = document.getElementById("courses-list");
+  if(!ul) return;
+  ul.innerHTML = "";
+  courses.forEach(c=>{
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${c.name}</strong> - ₹${c.fee||0}
+      <button onclick="editCourse('${c.id}')">✏️</button>
+      <button onclick="deleteCourse('${c.id}')">🗑️</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+// ===== PREVENT DUPLICATE COURSES =====
+function isDuplicateCourse(name){
+  return courses.some(c => c.name.toLowerCase() === name.toLowerCase());
+}
+
+// ===== EDIT COURSE =====
+async function editCourse(id){
+  const course = courses.find(c=>c.id===id);
+  if(!course) return;
+  const newName = prompt("Edit course name:", course.name);
+  if(!newName) return;
+  const newFee = prompt("Edit fee:", course.fee);
+  if(isDuplicateCourse(newName) && newName.toLowerCase() !== course.name.toLowerCase()){
+    alert("Course already exists");
+    return;
+  }
+  const {data,error} = await supa.from("courses")
+    .update({name:newName, fee:Number(newFee||0)})
+    .eq("id", id)
+    .select()
+    .single();
+  if(error){ alert(error.message); return; }
+  Object.assign(course, data);
+  renderCourses();
+}
+
+// ===== DELETE COURSE =====
+async function deleteCourse(id){
+  if(!confirm("Delete this course?")) return;
+  const {error} = await supa.from("courses").delete().eq("id", id);
+  if(error){ alert(error.message); return; }
+  courses = courses.filter(c=>c.id!==id);
+  renderCourses();
 }
