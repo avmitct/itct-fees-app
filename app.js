@@ -1,6 +1,6 @@
 // ================= Helper $ & supabase =================
 function $(id) { return document.getElementById(id); }
-const supa = window.supabaseClient || window.supa || window.supabase;
+const supa = window.supabaseClient || null;
 
 // ============== State =================
 let currentUser = null;
@@ -286,50 +286,6 @@ function renderDashboard(){
 }
 
 // ============== Students CRUD =================
-// ================= COURSES : SAVE COURSE =================
-async function saveCourse() {
-  console.log("saveCourse() CALLED");
-
-  if (!supa) {
-    alert("Supabase client उपलब्ध नाही");
-    return;
-  }
-
-  const name = ($("course-name") || {}).value?.trim() || "";
-  const fee = ($("course-fee") || {}).value || "";
-
-  if (!name) {
-    alert("Course नाव आवश्यक आहे");
-    return;
-  }
-
-  const payload = {
-    name: name,              // must match Supabase column
-    fee: fee ? Number(fee) : 0
-  };
-
-  const { data, error } = await supa
-    .from("courses")
-    .insert([payload])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Course insert error:", error);
-    alert(error.message);
-    return;
-  }
-
-  courses.push(data);
-  if (typeof renderCourses === "function") renderCourses();
-
-  // clear inputs
-  if ($("course-name")) $("course-name").value = "";
-  if ($("course-fee")) $("course-fee").value = "";
-
-  alert("Course added successfully");
-}
-
 async function saveStudent(){
   if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
 
@@ -457,6 +413,7 @@ const payload = {
 
 
         // insert into supabase
+        
         const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
         if (error) {
           console.error("Fees insert error:", error);
@@ -855,9 +812,6 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
-// Course
-if ($("save-course-btn"))
-  $("save-course-btn").addEventListener("click", saveCourse);
 
     // Student
     if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
@@ -933,3 +887,11 @@ async function handleLogin(){
 }
 function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); if($("app-section")) $("app-section").classList.add("hidden"); if($("login-section")) $("login-section").classList.remove("hidden"); }
 
+
+// ===== SAFETY BINDINGS (added) =====
+window.addEventListener("load", () => {
+  const mc = document.getElementById("manage-courses-btn");
+  if (mc) mc.addEventListener("click", () => showSection("courses-section"));
+  const sc = document.getElementById("save-course-btn");
+  if (sc) sc.addEventListener("click", saveCourse);
+});
