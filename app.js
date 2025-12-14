@@ -1,6 +1,6 @@
 // ================= Helper $ & supabase =================
 function $(id) { return document.getElementById(id); }
-const supa = window.supabaseClient || window.supa || window.supabase;
+const supa = window.supabaseClient || null;
 
 // ============== State =================
 let currentUser = null;
@@ -275,50 +275,6 @@ function renderUsers(){
 
 
 // ============== Students CRUD =================
-// ================= COURSES : SAVE COURSE =================
-async function saveCourse() {
-  console.log("saveCourse() CALLED");
-
-  if (!supa) {
-    alert("Supabase client उपलब्ध नाही");
-    return;
-  }
-
-  const name = ($("course-name") || {}).value?.trim() || "";
-  const fee = ($("course-fee") || {}).value || "";
-
-  if (!name) {
-    alert("Course नाव आवश्यक आहे");
-    return;
-  }
-
-  const payload = {
-    name: name,              // must match Supabase column
-    fee: fee ? Number(fee) : 0
-  };
-
-  const { data, error } = await supa
-    .from("courses")
-    .insert([payload])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Course insert error:", error);
-    alert(error.message);
-    return;
-  }
-
-  courses.push(data);
-  if (typeof renderCourses === "function") renderCourses();
-
-  // clear inputs
-  if ($("course-name")) $("course-name").value = "";
-  if ($("course-fee")) $("course-fee").value = "";
-
-  alert("Course added successfully");
-}
-
 async function saveStudent(){
   if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
 
@@ -351,7 +307,7 @@ async function saveStudent(){
 
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
-async 
+
 function viewStudentDetails(student){ alert(`Student: ${student.name}\nCourse: ${student.course_name||""}\nMobile: ${student.mobile}`); }
 
 // ============== Enquiry CRUD & Buttons =================
@@ -711,9 +667,6 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
-// Course
-if ($("save-course-btn"))
-  $("save-course-btn").addEventListener("click", saveCourse);
 
     // Student
     if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
@@ -808,10 +761,11 @@ async function deleteStudent(studentId){
 
     alert("Student and related payments deleted");
   }catch(e){
-    console.error(e);
+    console.error("deleteStudent error:", e);
     alert("Delete failed");
   }
 }
+
 
 // ===== DASHBOARD TOTALS (ONLY EXISTING STUDENTS & PAID RECORDS) =====
 function renderDashboard(){
@@ -830,3 +784,4 @@ function renderDashboard(){
   if($("dash-total-discount")) $("dash-total-discount").textContent = "₹"+totalDiscount;
   if($("dash-total-balance")) $("dash-total-balance").textContent = "₹"+balance;
 }
+
