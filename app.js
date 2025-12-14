@@ -796,7 +796,7 @@ window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
 // ============== Refresh all =================
 async function refreshAllData(){
   await Promise.all([loadCourses(), loadStudents(), loadEnquiries(), loadFees(), loadUsers()]);
-  renderCourses(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
+  renderCourses(); populateCourseDropdowns(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
 }
 
 // ============== DOM INIT =================
@@ -935,7 +935,7 @@ async function saveCourse() {
 
     // refresh UI
     if (Array.isArray(courses)) courses.push(data);
-    if (typeof renderCourses === "function") renderCourses();
+    if (typeof renderCourses === "function") renderCourses(); populateCourseDropdowns();
 
     if (nameEl) nameEl.value = "";
     if (feeEl) feeEl.value = "";
@@ -986,7 +986,7 @@ async function editCourse(id){
     .single();
   if(error){ alert(error.message); return; }
   Object.assign(course, data);
-  renderCourses();
+  renderCourses(); populateCourseDropdowns();
 }
 
 // ===== DELETE COURSE =====
@@ -995,5 +995,68 @@ async function deleteCourse(id){
   const {error} = await supa.from("courses").delete().eq("id", id);
   if(error){ alert(error.message); return; }
   courses = courses.filter(c=>c.id!==id);
+  renderCourses(); populateCourseDropdowns();
+}
+
+// ===== EDIT COURSE (FIXED: name + fee) =====
+async function editCourse(id){
+  const course = courses.find(c=>c.id===id);
+  if(!course) return;
+
+  const newName = prompt("Edit course name:", course.name);
+  if(newName === null) return;
+
+  const newFeeStr = prompt("Edit course fee:", course.fee ?? 0);
+  if(newFeeStr === null) return;
+
+  const newNameTrim = newName.trim();
+  const newFee = Number(newFeeStr);
+
+  if(!newNameTrim){
+    alert("Course name cannot be empty");
+    return;
+  }
+
+  if(
+    courses.some(c =>
+      c.id !== id &&
+      c.name.toLowerCase() === newNameTrim.toLowerCase()
+    )
+  ){
+    alert("Course already exists");
+    return;
+  }
+
+  const {data,error} = await supa
+    .from("courses")
+    .update({ name: newNameTrim, fee: isNaN(newFee)?0:newFee })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  Object.assign(course, data);
   renderCourses();
+}
+
+// ===== POPULATE COURSE DROPDOWNS =====
+function populateCourseDropdowns(){
+  const selects = [
+    document.getElementById("course-select"),
+    document.getElementById("enq-course-select")
+  ];
+  selects.forEach(sel=>{
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- Select Course --</option>';
+    courses.forEach(c=>{
+      const opt = document.createElement("option");
+      opt.value = c.name;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  });
 }
