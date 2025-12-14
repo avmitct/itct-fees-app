@@ -1063,3 +1063,77 @@ async function editCourse(id){
     alert("Unexpected error while editing course");
   }
 }
+
+
+
+// ===== UNIVERSAL EDIT COURSE (NAME + FEE) =====
+async function editCourse(id){
+  try{
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
+
+    // Ask for name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
+
+    // Ask for fee (THIS WILL ALWAYS OPEN)
+    const feeDefault = (course.fee !== undefined && course.fee !== null) ? course.fee : 0;
+    const newFeeInput = prompt("Edit course fee:", feeDefault);
+    if(newFeeInput === null) return;
+
+    const newFee = Number(newFeeInput);
+    if(isNaN(newFee)){
+      alert("Fee must be a number");
+      return;
+    }
+
+    // Prevent duplicates (except self)
+    const duplicate = courses.some(c =>
+      String(c.id) !== String(id) &&
+      c.name.toLowerCase() === nameTrim.toLowerCase()
+    );
+    if(duplicate){
+      alert("Course already exists");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .update({ name: nameTrim, fee: newFee })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if(error){
+      console.error("Edit course error:", error);
+      alert(error.message);
+      return;
+    }
+
+    // Update local cache
+    course.name = data.name;
+    course.fee  = data.fee;
+
+    renderCourses();
+    if(typeof populateCourseDropdowns === "function") populateCourseDropdowns();
+
+    alert("Course updated successfully");
+  }catch(e){
+    console.error("editCourse exception:", e);
+    alert("Unexpected error while editing course");
+  }
+}
+
+// ===== ALIASES (IMPORTANT)
+// If HTML buttons call old function names, redirect them here
+window.editCourseName = editCourse;
+window.editOnlyCourseName = editCourse;
+
