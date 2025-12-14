@@ -1,6 +1,6 @@
 // ================= Helper $ & supabase =================
 function $(id) { return document.getElementById(id); }
-const supa = window.supabaseClient || null;
+const supa = window.supabaseClient || window.supa || window.supabase;
 
 // ============== State =================
 let currentUser = null;
