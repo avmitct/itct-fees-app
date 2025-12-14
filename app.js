@@ -895,3 +895,49 @@ window.addEventListener("load", () => {
   const sc = document.getElementById("save-course-btn");
   if (sc) sc.addEventListener("click", saveCourse);
 });
+
+
+// ===== ADD COURSE (FIXED) =====
+async function saveCourse() {
+  try {
+    if (!supa) {
+      alert("Supabase client उपलब्ध नाही");
+      return;
+    }
+
+    const nameEl = document.getElementById("course-name");
+    const feeEl = document.getElementById("course-fee");
+
+    const name = nameEl ? nameEl.value.trim() : "";
+    const fee = feeEl ? feeEl.value : "";
+
+    if (!name) {
+      alert("Course नाव आवश्यक आहे");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .insert([{ name: name, fee: fee ? Number(fee) : 0 }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Course insert error:", error);
+      alert(error.message || "Course save error");
+      return;
+    }
+
+    // refresh UI
+    if (Array.isArray(courses)) courses.push(data);
+    if (typeof renderCourses === "function") renderCourses();
+
+    if (nameEl) nameEl.value = "";
+    if (feeEl) feeEl.value = "";
+
+    alert("Course added successfully");
+  } catch (e) {
+    console.error("saveCourse exception:", e);
+    alert("Unexpected error while saving course");
+  }
+}
