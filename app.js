@@ -87,6 +87,7 @@ async function loadUsers(){
 
 // ============== Renderers =================
 function renderCourses(){
+
   const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
   if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
   courses.forEach(c=>{
@@ -273,6 +274,17 @@ function renderUsers(){
   });
 }
 
+function renderDashboard(){
+  $("dash-total-students").textContent = `Total students: ${students.length}`;
+  const totalFee = students.reduce((s,v)=> s + (v.total_fee||v.course_fee||0), 0);
+  const totalPaid = fees.reduce((s,v)=> s + (Number(v.amount||v.total_fee||0)), 0);
+  const totalDiscount = fees.reduce((s,v)=> s + (Number(v.discount||0)), 0);
+  const balance = totalFee - totalPaid - totalDiscount;
+  $("dash-total-fee").textContent = `Total course fee: ₹${totalFee}`;
+  $("dash-total-paid").textContent = `Total paid: ₹${totalPaid}`;
+  $("dash-total-discount").textContent = `Total discount: ₹${totalDiscount}`;
+  $("dash-total-balance").textContent = `Total balance: ₹${balance}`;
+}
 
 // ============== Students CRUD =================
 async function saveStudent(){
@@ -307,6 +319,140 @@ async function saveStudent(){
 
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
+async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
+
+// placeholders
+// Replace your existing openFeesModal function with this one.
+async function openFeesModal(student) {
+  // get supabase client (support different var names)
+  const supaClient = window.supabaseClient || window.supa || (window.supabase && window.supabase.createClient && window.supabase) || null;
+  if (!supaClient) {
+    alert("Supabase client उपलब्ध नाही. console मध्ये तपासा.");
+    console.error("Supabase client not found as window.supabaseClient / window.supa / window.supabase");
+    return;
+  }
+
+  // modal container (index.html मध्ये #modal असावे)
+  let modal = document.getElementById("modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modal";
+    document.body.appendChild(modal);
+  }
+  modal.classList.remove("hidden");
+  modal.innerHTML = "";
+
+  // build modal content
+  const card = document.createElement("div");
+  card.className = "modal-card";
+
+  card.innerHTML = `
+    <h3>Fees Entry — ${escapeHtml(student.name || "")}</h3>
+    <div style="margin:8px 0;">
+      <label>Amount (₹)</label>
+      <input id="modal-fees-amount" type="number" step="0.01" placeholder="Amount" class="input">
+    </div>
+    <div style="margin:8px 0;">
+      <label>Discount (₹) — optional</label>
+      <input id="modal-fees-discount" type="number" step="0.01" placeholder="Discount" class="input">
+    </div>
+    <div style="margin:8px 0;">
+      <label>Receipt No (optional)</label>
+      <input id="modal-fees-receipt" type="text" placeholder="Receipt No" class="input">
+    </div>
+    <div style="margin:8px 0;">
+      <label>Date</label>
+      <input id="modal-fees-date" type="date" class="input" value="${(new Date()).toISOString().slice(0,10)}">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button id="modal-fees-save" class="btn-primary">Save</button>
+      <button id="modal-fees-cancel" class="btn-small secondary">Cancel</button>
+    </div>
+  `;
+
+  modal.appendChild(card);
+
+  // helpers
+  function closeModal() {
+    modal.classList.add("hidden");
+    modal.innerHTML = "";
+  }
+  function numericVal(id) {
+    const v = (document.getElementById(id) || {}).value;
+    return v ? Number(v) : 0;
+  }
+
+  // event handlers
+  const cancelBtn = document.getElementById("modal-fees-cancel");
+  if(cancelBtn) cancelBtn.addEventListener("click", closeModal);
+
+  const saveBtn = document.getElementById("modal-fees-save");
+  if(saveBtn){
+    saveBtn.addEventListener("click", async () => {
+      // wrap in try-catch to avoid unhandled exceptions
+      try {
+        const amount = numericVal("modal-fees-amount");
+        const discount = numericVal("modal-fees-discount");
+        const receipt = (document.getElementById("modal-fees-receipt") || {}).value.trim();
+        const date = (document.getElementById("modal-fees-date") || {}).value;
+
+        if (!amount || amount <= 0) {
+          alert("कृपया वैध रक्कम भरा (Amount > 0).");
+          return;
+        }
+
+        // prepare record for 'fees' table (use column names present in your DB)
+        // --- payload matching typical fees table columns (no student_name) ---
+const payload = {
+  student_id: student.id || null,               // required: id from students table (uuid)
+  total_fee: Number(amount || 0),               // amount paid
+  discount: Number(discount || 0),              // discount
+  receipt_no: receipt || null,                  // receipt number, optional
+  note: "",                                     // optional note
+  date: date || new Date().toISOString()        // timestamp
+};
+
+
+        // insert into supabase
+        
+        const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
+        if (error) {
+          console.error("Fees insert error:", error);
+          alert("Fees save करताना त्रुटी — Console तपासा.");
+          return;
+        }
+        console.log("Fees inserted:", data);
+        alert("Fees saved successfully.");
+
+        closeModal();
+
+        // refresh local data lists on UI (call your existing loaders)
+        if (typeof loadFees === "function") await loadFees();
+        if (typeof loadStudents === "function") await loadStudents();
+        if (typeof renderStudents === "function") renderStudents();
+        if (typeof renderDashboard === "function") renderDashboard();
+
+      } catch (err) {
+        console.error("Exception while saving fees:", err);
+        alert("Unexpected error while saving fees. Console तपासा.");
+      }
+    });
+  }
+
+  // focus on amount
+  setTimeout(() => {
+    const el = document.getElementById("modal-fees-amount");
+    if (el) el.focus();
+  }, 100);
+} // <-- end of openFeesModal function
+
+// small helper to escape HTML (prevent XSS when injecting name)
+function escapeHtml(str) {
+  if(!str) return "";
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+  });
+}
 
 function viewStudentDetails(student){ alert(`Student: ${student.name}\nCourse: ${student.course_name||""}\nMobile: ${student.mobile}`); }
 
@@ -650,7 +796,7 @@ window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
 // ============== Refresh all =================
 async function refreshAllData(){
   await Promise.all([loadCourses(), loadStudents(), loadEnquiries(), loadFees(), loadUsers()]);
-  renderCourses(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
+  renderCourses(); populateCourseDropdowns(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
 }
 
 // ============== DOM INIT =================
@@ -743,45 +889,251 @@ async function handleLogin(){
 function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); if($("app-section")) $("app-section").classList.add("hidden"); if($("login-section")) $("login-section").classList.remove("hidden"); }
 
 
-// ===== DELETE STUDENT (CASCADE DELETE FEES) =====
-async function deleteStudent(studentId){
-  if(!confirm("Delete this student and all payment records?")) return;
+// ===== SAFETY BINDINGS (added) =====
+window.addEventListener("load", () => {
+  const mc = document.getElementById("manage-courses-btn");
+  if (mc) mc.addEventListener("click", () => showSection("courses-section"));
+  const sc = document.getElementById("save-course-btn");
+  if (sc) sc.addEventListener("click", saveCourse);
+});
 
+
+// ===== ADD COURSE (FIXED) =====
+async function saveCourse() {
+  // Prevent duplicate
+  const existing = courses.some(c=>c.name.toLowerCase() === (document.getElementById("course-name")?.value||"").trim().toLowerCase());
+  if(existing){ alert("Course already exists"); return; }
+
+  try {
+    if (!supa) {
+      alert("Supabase client उपलब्ध नाही");
+      return;
+    }
+
+    const nameEl = document.getElementById("course-name");
+    const feeEl = document.getElementById("course-fee");
+
+    const name = nameEl ? nameEl.value.trim() : "";
+    const fee = feeEl ? feeEl.value : "";
+
+    if (!name) {
+      alert("Course नाव आवश्यक आहे");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .insert([{ name: name, fee: fee ? Number(fee) : 0 }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Course insert error:", error);
+      alert(error.message || "Course save error");
+      return;
+    }
+
+    // refresh UI
+    if (Array.isArray(courses)) courses.push(data);
+    if (typeof renderCourses === "function") renderCourses(); populateCourseDropdowns();
+
+    if (nameEl) nameEl.value = "";
+    if (feeEl) feeEl.value = "";
+
+    alert("Course added successfully");
+  } catch (e) {
+    console.error("saveCourse exception:", e);
+    alert("Unexpected error while saving course");
+  }
+}
+
+// ===== ENHANCED COURSES RENDER (Edit/Delete) =====
+function renderCourses(){
+  const ul = document.getElementById("courses-list");
+  if(!ul) return;
+  ul.innerHTML = "";
+  courses.forEach(c=>{
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${c.name}</strong> - ₹${c.fee||0}
+      <button onclick="editCourse('${c.id}')">✏️</button>
+      <button onclick="deleteCourse('${c.id}')">🗑️</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+// ===== PREVENT DUPLICATE COURSES =====
+function isDuplicateCourse(name){
+  return courses.some(c => c.name.toLowerCase() === name.toLowerCase());
+}
+
+
+// ===== DELETE COURSE =====
+async function deleteCourse(id){
+  if(!confirm("Delete this course?")) return;
+  const {error} = await supa.from("courses").delete().eq("id", id);
+  if(error){ alert(error.message); return; }
+  courses = courses.filter(c=>c.id!==id);
+  renderCourses(); populateCourseDropdowns();
+}
+
+
+// ===== POPULATE COURSE DROPDOWNS =====
+function populateCourseDropdowns(){
+  const selects = [
+    document.getElementById("course-select"),
+    document.getElementById("enq-course-select")
+  ];
+  selects.forEach(sel=>{
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- Select Course --</option>';
+    courses.forEach(c=>{
+      const opt = document.createElement("option");
+      opt.value = c.name;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+
+// ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
+async function editCourse(id){
   try{
-    await supa.from("fees").delete().eq("student_id", studentId);
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
 
-    const { error } = await supa.from("students").delete().eq("id", studentId);
+    // Ask name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
+
+    // Ask fee
+    const feeDefault = (course.fee !== null && course.fee !== undefined) ? course.fee : 0;
+    const newFeeInput = prompt("Edit course fee:", feeDefault);
+    if(newFeeInput === null) return;
+
+    const newFee = Number(newFeeInput);
+    if(isNaN(newFee)){
+      alert("Fee must be a number");
+      return;
+    }
+
+    // Prevent duplicate names (excluding self)
+    const duplicate = courses.some(c =>
+      String(c.id) !== String(id) &&
+      c.name.toLowerCase() === nameTrim.toLowerCase()
+    );
+    if(duplicate){
+      alert("Course already exists");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .update({ name: nameTrim, fee: newFee })
+      .eq("id", id)
+      .select()
+      .single();
+
     if(error){
+      console.error("Edit course error:", error);
       alert(error.message);
       return;
     }
 
-    students = students.filter(s => String(s.id) !== String(studentId));
-    if(typeof refreshAllData === "function") await refreshAllData();
+    // Update local cache
+    course.name = data.name;
+    course.fee = data.fee;
 
-    alert("Student and related payments deleted");
+    renderCourses();
+    populateCourseDropdowns();
+
+    alert("Course updated successfully");
   }catch(e){
-    console.error("deleteStudent error:", e);
-    alert("Delete failed");
+    console.error("editCourse exception:", e);
+    alert("Unexpected error while editing course");
   }
 }
 
 
-// ===== DASHBOARD TOTALS (ONLY EXISTING STUDENTS & PAID RECORDS) =====
-function renderDashboard(){
-  const studentIds = new Set(students.map(s => String(s.id)));
-  const validFees = fees.filter(f => studentIds.has(String(f.student_id)));
 
-  const totalStudents = students.length;
-  const totalCourseFee = students.reduce((s,st)=> s + Number(st.total_fee||0), 0);
-  const totalPaid = validFees.reduce((s,f)=> s + Number(f.amount||0), 0);
-  const totalDiscount = validFees.reduce((s,f)=> s + Number(f.discount||0), 0);
-  const balance = totalCourseFee - totalPaid - totalDiscount;
+// ===== UNIVERSAL EDIT COURSE (NAME + FEE) =====
+async function editCourse(id){
+  try{
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
 
-  if($("dash-total-students")) $("dash-total-students").textContent = totalStudents;
-  if($("dash-total-course-fee")) $("dash-total-course-fee").textContent = "₹"+totalCourseFee;
-  if($("dash-total-paid")) $("dash-total-paid").textContent = "₹"+totalPaid;
-  if($("dash-total-discount")) $("dash-total-discount").textContent = "₹"+totalDiscount;
-  if($("dash-total-balance")) $("dash-total-balance").textContent = "₹"+balance;
+    // Ask for name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
+
+    // Ask for fee (THIS WILL ALWAYS OPEN)
+    const feeDefault = (course.fee !== undefined && course.fee !== null) ? course.fee : 0;
+    const newFeeInput = prompt("Edit course fee:", feeDefault);
+    if(newFeeInput === null) return;
+
+    const newFee = Number(newFeeInput);
+    if(isNaN(newFee)){
+      alert("Fee must be a number");
+      return;
+    }
+
+    // Prevent duplicates (except self)
+    const duplicate = courses.some(c =>
+      String(c.id) !== String(id) &&
+      c.name.toLowerCase() === nameTrim.toLowerCase()
+    );
+    if(duplicate){
+      alert("Course already exists");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .update({ name: nameTrim, fee: newFee })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if(error){
+      console.error("Edit course error:", error);
+      alert(error.message);
+      return;
+    }
+
+    // Update local cache
+    course.name = data.name;
+    course.fee  = data.fee;
+
+    renderCourses();
+    if(typeof populateCourseDropdowns === "function") populateCourseDropdowns();
+
+    alert("Course updated successfully");
+  }catch(e){
+    console.error("editCourse exception:", e);
+    alert("Unexpected error while editing course");
+  }
 }
+
+// ===== ALIASES (IMPORTANT)
+// If HTML buttons call old function names, redirect them here
+window.editCourseName = editCourse;
+window.editOnlyCourseName = editCourse;
 
