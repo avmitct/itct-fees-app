@@ -288,6 +288,8 @@ function renderDashboard(){
 // ============== Students CRUD =================
 // ================= COURSES : SAVE COURSE =================
 async function saveCourse() {
+  console.log("saveCourse() CALLED");
+
   if (!supa) {
     alert("Supabase client उपलब्ध नाही");
     return;
