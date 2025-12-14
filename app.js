@@ -286,6 +286,48 @@ function renderDashboard(){
 }
 
 // ============== Students CRUD =================
+// ================= COURSES : SAVE COURSE =================
+async function saveCourse() {
+  if (!supa) {
+    alert("Supabase client उपलब्ध नाही");
+    return;
+  }
+
+  const name = ($("course-name") || {}).value?.trim() || "";
+  const fee = ($("course-fee") || {}).value || "";
+
+  if (!name) {
+    alert("Course नाव आवश्यक आहे");
+    return;
+  }
+
+  const payload = {
+    name: name,              // must match Supabase column
+    fee: fee ? Number(fee) : 0
+  };
+
+  const { data, error } = await supa
+    .from("courses")
+    .insert([payload])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Course insert error:", error);
+    alert(error.message);
+    return;
+  }
+
+  courses.push(data);
+  if (typeof renderCourses === "function") renderCourses();
+
+  // clear inputs
+  if ($("course-name")) $("course-name").value = "";
+  if ($("course-fee")) $("course-fee").value = "";
+
+  alert("Course added successfully");
+}
+
 async function saveStudent(){
   if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
 
@@ -811,6 +853,9 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+// Course
+if ($("save-course-btn"))
+  $("save-course-btn").addEventListener("click", saveCourse);
 
     // Student
     if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
