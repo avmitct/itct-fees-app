@@ -92,7 +92,14 @@ function renderCourses(){
   if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
   courses.forEach(c=>{
     if(list){const li=document.createElement("li"); li.textContent=`${c.name} – ₹${c.fee||0}`; list.appendChild(li);}
-    if(csSel){const opt=document.createElement("option"); opt.value=c.id; opt.textContent=`${c.name} (₹${c.fee||0})`; csSel.appendChild(opt);}
+    if(csSel){
+  const opt = document.createElement("option");
+  opt.value = c.id;               // course id
+  opt.textContent = c.name;       // ONLY name
+  opt.dataset.fee = c.fee || 0;   // ✅ STORE FEE HERE
+  csSel.appendChild(opt);
+}
+
     if(enqSel){const opt2=document.createElement("option"); opt2.value=c.name; opt2.textContent=c.name; enqSel.appendChild(opt2);}
     if(repSel){const opt3=document.createElement("option"); opt3.value=c.name; opt3.textContent=c.name; repSel.appendChild(opt3);}
   });
@@ -301,22 +308,23 @@ async function saveStudent(){
 
   if(!name){ alert("नाव आवश्यक आहे"); return; }
   const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
-  const course = courses.find(c=> String(c.id) === String(courseId));
+  
   const totalFee = course ? Number(course.fee || 0) : 0;
-
-  const payload = {
+const courseSelect = $("course-select");
+const selectedOpt = courseSelect?.options[courseSelect.selectedIndex];
+const courseName = selectedOpt ? selectedOpt.textContent : "";
+const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
+ const payload = {
   name,
   dob,
   age: ageVal ? Number(ageVal) : null,
   address: addr,
   mobile: mobCheck.m1 || "",
   mobile2: mobCheck.m2 || "",
-  course_name: course && course.name ? course.name : "",
-  total_fee: course && course.fee ? Number(course.fee) : Number(totalFee || 0),
+  course_name: courseName,     // ✅ FIXED
+  total_fee: courseFee,        // ✅ FIXED
   due_date: dueDate || null
 };
-
-
   const { data, error } = await supa.from("students").insert(payload).select().single();
   if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
   students.unshift(data);
