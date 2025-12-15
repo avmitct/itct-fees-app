@@ -303,28 +303,53 @@ async function saveStudent(){
   const addr = ($("address") || {}).value?.trim() || "";
   const m1 = ($("mobile") || {}).value?.trim() || "";
   const m2 = ($("mobile2") || {}).value?.trim() || "";
-  const courseId = ($("course-select") || {}).value;
   const dueDate = ($("course-duedate") || {}).value;
 
   if(!name){ alert("नाव आवश्यक आहे"); return; }
-  const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
-  
-  const totalFee = course ? Number(course.fee || 0) : 0;
-const courseSelect = $("course-select");
-const selectedOpt = courseSelect?.options[courseSelect.selectedIndex];
-const courseName = selectedOpt ? selectedOpt.textContent : "";
-const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
- const payload = {
-  name,
-  dob,
-  age: ageVal ? Number(ageVal) : null,
-  address: addr,
-  mobile: mobCheck.m1 || "",
-  mobile2: mobCheck.m2 || "",
-  course_name: courseName,     // ✅ FIXED
-  total_fee: courseFee,        // ✅ FIXED
-  due_date: dueDate || null
-};
+
+  const mobCheck = validateMobiles(m1,m2);
+  if(!mobCheck.ok){ alert(mobCheck.msg); return; }
+
+  // ✅ GET SELECTED COURSE SAFELY
+  const courseSelect = $("course-select");
+  if(!courseSelect || courseSelect.selectedIndex < 0){
+    alert("कोर्स निवडा");
+    return;
+  }
+
+  const selectedOpt = courseSelect.options[courseSelect.selectedIndex];
+  const courseName = selectedOpt.textContent || "";
+  const courseFee  = Number(selectedOpt.dataset.fee || 0);
+
+  if(!courseName){
+    alert("कोर्स नाव सापडले नाही");
+    return;
+  }
+
+  // ✅ FINAL CORRECT PAYLOAD
+  const payload = {
+    name,
+    dob,
+    age: ageVal ? Number(ageVal) : null,
+    address: addr,
+    mobile: mobCheck.m1 || "",
+    mobile2: mobCheck.m2 || "",
+    course_name: courseName,
+    total_fee: courseFee,
+    due_date: dueDate || null
+  };
+
+  const { error } = await supa.from("students").insert([payload]);
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  alert("विद्यार्थी यशस्वीरित्या सेव झाला");
+  await refreshAllData();
+  showSection("students-list");
+}
+
   const { data, error } = await supa.from("students").insert(payload).select().single();
   if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
   students.unshift(data);
