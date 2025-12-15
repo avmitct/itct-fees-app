@@ -307,8 +307,9 @@ async function saveStudent(){
   const payload = {
     name, dob, age: ageVal? Number(ageVal): null,
     address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_name: course? course.id : null, course_name: course? course.name : "",
-    due_date: dueDate || null, total_fee: totalFee
+    course_name: courseName,
+    total_fee: totalFee,
+    due_date: dueDate || null
   };
 
   const { data, error } = await supa.from("students").insert(payload).select().single();
