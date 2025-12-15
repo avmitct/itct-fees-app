@@ -87,6 +87,7 @@ async function loadUsers(){
 
 // ============== Renderers =================
 function renderCourses(){
+
   const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
   if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
   courses.forEach(c=>{
@@ -207,7 +208,7 @@ async function renderStudents(){
       <div class="info">
         <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
         <div class="s-meta">
-          ${escapeHtml(s.course_name || "")} ${s.course_due_date ? `| Due: ${s.course_due_date}` : ""} <br>
+          ${escapeHtml(s.course_name || "")} ${s.due_date ? `| Due: ${s.due_date}` : ""} <br>
           Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
         </div>
         <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
@@ -306,8 +307,8 @@ async function saveStudent(){
   const payload = {
     name, dob, age: ageVal? Number(ageVal): null,
     address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_id: course? course.id : null, course_name: course? course.name : "",
-    course_due_date: dueDate || null, total_fee: totalFee
+    course_name: course? course.id : null, course_name: course? course.name : "",
+    due_date: dueDate || null, total_fee: totalFee
   };
 
   const { data, error } = await supa.from("students").insert(payload).select().single();
@@ -413,6 +414,7 @@ const payload = {
 
 
         // insert into supabase
+        
         const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
         if (error) {
           console.error("Fees insert error:", error);
@@ -607,7 +609,7 @@ async function generateDueReport(){
   let filtered = candidates;
   if(from || to){
     filtered = candidates.filter(s=>{
-      const due = s.course_due_date || s.due_date || "";
+      const due = s.due_date || s.due_date || "";
       if(!due) return false;
       if(from && due < from) return false;
       if(to && due > to) return false;
@@ -624,7 +626,7 @@ async function generateDueReport(){
 
   const outRows = [];
   filtered.forEach(s=>{
-    const due = s.course_due_date || s.due_date || "-";
+    const due = s.due_date || s.due_date || "-";
     html += `<tr>
       <td>${escapeHtml(s.name)}</td>
       <td>${escapeHtml(s.mobile || "")}</td>
@@ -794,7 +796,7 @@ window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
 // ============== Refresh all =================
 async function refreshAllData(){
   await Promise.all([loadCourses(), loadStudents(), loadEnquiries(), loadFees(), loadUsers()]);
-  renderCourses(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
+  renderCourses(); populateCourseDropdowns(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
 }
 
 // ============== DOM INIT =================
@@ -885,4 +887,253 @@ async function handleLogin(){
   applyRoleUI(); await refreshAllData(); showSection("dashboard-section");
 }
 function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); if($("app-section")) $("app-section").classList.add("hidden"); if($("login-section")) $("login-section").classList.remove("hidden"); }
+
+
+// ===== SAFETY BINDINGS (added) =====
+window.addEventListener("load", () => {
+  const mc = document.getElementById("manage-courses-btn");
+  if (mc) mc.addEventListener("click", () => showSection("courses-section"));
+  const sc = document.getElementById("save-course-btn");
+  if (sc) sc.addEventListener("click", saveCourse);
+});
+
+
+// ===== ADD COURSE (FIXED) =====
+async function saveCourse() {
+  // Prevent duplicate
+  const existing = courses.some(c=>c.name.toLowerCase() === (document.getElementById("course-name")?.value||"").trim().toLowerCase());
+  if(existing){ alert("Course already exists"); return; }
+
+  try {
+    if (!supa) {
+      alert("Supabase client उपलब्ध नाही");
+      return;
+    }
+
+    const nameEl = document.getElementById("course-name");
+    const feeEl = document.getElementById("course-fee");
+
+    const name = nameEl ? nameEl.value.trim() : "";
+    const fee = feeEl ? feeEl.value : "";
+
+    if (!name) {
+      alert("Course नाव आवश्यक आहे");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .insert([{ name: name, fee: fee ? Number(fee) : 0 }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Course insert error:", error);
+      alert(error.message || "Course save error");
+      return;
+    }
+
+    // refresh UI
+    if (Array.isArray(courses)) courses.push(data);
+    if (typeof renderCourses === "function") renderCourses(); populateCourseDropdowns();
+
+    if (nameEl) nameEl.value = "";
+    if (feeEl) feeEl.value = "";
+
+    alert("Course added successfully");
+  } catch (e) {
+    console.error("saveCourse exception:", e);
+    alert("Unexpected error while saving course");
+  }
+}
+
+// ===== ENHANCED COURSES RENDER (Edit/Delete) =====
+function renderCourses(){
+  const ul = document.getElementById("courses-list");
+  if(!ul) return;
+  ul.innerHTML = "";
+  courses.forEach(c=>{
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${c.name}</strong> - ₹${c.fee||0}
+      <button onclick="editCourse('${c.id}')">✏️</button>
+      <button onclick="deleteCourse('${c.id}')">🗑️</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+// ===== PREVENT DUPLICATE COURSES =====
+function isDuplicateCourse(name){
+  return courses.some(c => c.name.toLowerCase() === name.toLowerCase());
+}
+
+
+// ===== DELETE COURSE =====
+async function deleteCourse(id){
+  if(!confirm("Delete this course?")) return;
+  const {error} = await supa.from("courses").delete().eq("id", id);
+  if(error){ alert(error.message); return; }
+  courses = courses.filter(c=>c.id!==id);
+  renderCourses(); populateCourseDropdowns();
+}
+
+
+// ===== POPULATE COURSE DROPDOWNS =====
+function populateCourseDropdowns(){
+  const selects = [
+    document.getElementById("course-select"),
+    document.getElementById("enq-course-select")
+  ];
+  selects.forEach(sel=>{
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- Select Course --</option>';
+    courses.forEach(c=>{
+      const opt = document.createElement("option");
+      opt.value = c.name;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+
+// ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
+async function editCourse(id){
+  try{
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
+
+    // Ask name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
+
+    // Ask fee
+    const feeDefault = (course.fee !== null && course.fee !== undefined) ? course.fee : 0;
+    const newFeeInput = prompt("Edit course fee:", feeDefault);
+    if(newFeeInput === null) return;
+
+    const newFee = Number(newFeeInput);
+    if(isNaN(newFee)){
+      alert("Fee must be a number");
+      return;
+    }
+
+    // Prevent duplicate names (excluding self)
+    const duplicate = courses.some(c =>
+      String(c.id) !== String(id) &&
+      c.name.toLowerCase() === nameTrim.toLowerCase()
+    );
+    if(duplicate){
+      alert("Course already exists");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .update({ name: nameTrim, fee: newFee })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if(error){
+      console.error("Edit course error:", error);
+      alert(error.message);
+      return;
+    }
+
+    // Update local cache
+    course.name = data.name;
+    course.fee = data.fee;
+
+    renderCourses();
+    populateCourseDropdowns();
+
+    alert("Course updated successfully");
+  }catch(e){
+    console.error("editCourse exception:", e);
+    alert("Unexpected error while editing course");
+  }
+}
+
+
+
+// ===== UNIVERSAL EDIT COURSE (NAME + FEE) =====
+async function editCourse(id){
+  try{
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
+
+    // Ask for name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
+
+    // Ask for fee (THIS WILL ALWAYS OPEN)
+    const feeDefault = (course.fee !== undefined && course.fee !== null) ? course.fee : 0;
+    const newFeeInput = prompt("Edit course fee:", feeDefault);
+    if(newFeeInput === null) return;
+
+    const newFee = Number(newFeeInput);
+    if(isNaN(newFee)){
+      alert("Fee must be a number");
+      return;
+    }
+
+    // Prevent duplicates (except self)
+    const duplicate = courses.some(c =>
+      String(c.id) !== String(id) &&
+      c.name.toLowerCase() === nameTrim.toLowerCase()
+    );
+    if(duplicate){
+      alert("Course already exists");
+      return;
+    }
+
+    const { data, error } = await supa
+      .from("courses")
+      .update({ name: nameTrim, fee: newFee })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if(error){
+      console.error("Edit course error:", error);
+      alert(error.message);
+      return;
+    }
+
+    // Update local cache
+    course.name = data.name;
+    course.fee  = data.fee;
+
+    renderCourses();
+    if(typeof populateCourseDropdowns === "function") populateCourseDropdowns();
+
+    alert("Course updated successfully");
+  }catch(e){
+    console.error("editCourse exception:", e);
+    alert("Unexpected error while editing course");
+  }
+}
+
+// ===== ALIASES (IMPORTANT)
+// If HTML buttons call old function names, redirect them here
+window.editCourseName = editCourse;
+window.editOnlyCourseName = editCourse;
 
