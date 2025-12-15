@@ -12,6 +12,14 @@ let users = [];
 let lastReportRows = [];
 
 // ============== Utilities =================
+function getStudentCourseName(s) {
+  return s.course_name || "";
+}
+
+function getStudentTotalFee(s) {
+  return Number(s.total_fee || 0);
+}
+
 function calcAgeFromDob(dobStr) {
   if (!dobStr) return "";
   const d = new Date(dobStr);
@@ -180,64 +188,55 @@ async function showStudentFeesHistory(studentId){
 async function renderStudents(){
   const ul = $("list");
   if(!ul) return;
-  const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
+
+  const search = ($("search")?.value || "").toLowerCase();
   ul.innerHTML = "";
 
-  // Filter students by search
-  const visible = students.filter(s=>{
-    if(!search) return true;
-    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
-    return hay.includes(search);
-  });
+  for(const s of students){
+    const hay = `${s.name} ${s.mobile} ${s.mobile2 || ""} ${s.course_name || ""}`.toLowerCase();
+    if(search && !hay.includes(search)) continue;
 
-  for(const s of visible){
-    // calculate paid & discount by querying fees table for this student
     const feeRows = await getFeesForStudent(s.id);
 
-    const totalPaid = feeRows.reduce((acc,r)=> acc + (Number(r.amount||r.total_fee||0)), 0);
-    const totalDiscount = feeRows.reduce((acc,r)=> acc + (Number(r.discount||0)), 0);
-    const studentTotalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0); // adjust to your schema field
+    const paid = feeRows.reduce((a,r)=> a + Number(r.amount || 0), 0);
+    const discount = feeRows.reduce((a,r)=> a + Number(r.discount || 0), 0);
+    const totalFee = Number(s.total_fee || 0);
+    const balance = Math.max(0, totalFee - paid - discount);
 
-    const balance = Math.max(0, studentTotalFee - totalPaid - totalDiscount);
-
-    // build item
     const li = document.createElement("li");
     li.className = "student-item";
 
     li.innerHTML = `
       <div class="info">
-        <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
+        <strong>${escapeHtml(s.name)}</strong>
         <div class="s-meta">
-          ${escapeHtml(s.course_name || "")} ${s.due_date ? `| Due: ${s.due_date}` : ""} <br>
-          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
+          ${escapeHtml(s.course_name || "-")}
+          ${s.due_date ? ` | Due: ${s.due_date}` : ""}
+          <br>
+          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2) : ""}
         </div>
-        <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
-          Fee: ₹${studentTotalFee.toFixed(2)} | Paid: ₹${totalPaid.toFixed(2)} | Discount: ₹${totalDiscount.toFixed(2)} | <strong>Balance: ₹${balance.toFixed(2)}</strong>
+        <div class="fee-line">
+          Fee: ₹${totalFee} |
+          Paid: ₹${paid} |
+          Discount: ₹${discount} |
+          <strong>Balance: ₹${balance}</strong>
         </div>
       </div>
-      <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
-        <button class="pay-btn">${"फीस भरा"}</button>
+      <div class="actions">
+        <button class="pay-btn">फीस भरा</button>
         <button class="view-btn">पहा</button>
-        <button class="delete-btn admin-only">हटवा</button>
+        ${isAdmin() ? `<button class="delete-btn">हटवा</button>` : ``}
       </div>
     `;
 
-    // hook actions
-    const payBtn = li.querySelector(".pay-btn");
-    if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
-
-    const viewBtn = li.querySelector(".view-btn");
-    if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
-
-    const delBtn = li.querySelector(".delete-btn");
-    if(delBtn){
-      if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden");
-      delBtn.addEventListener("click", ()=> deleteStudent(s.id));
-    }
+    li.querySelector(".pay-btn")?.addEventListener("click", ()=> openFeesModal(s));
+    li.querySelector(".view-btn")?.addEventListener("click", ()=> showStudentFeesHistory(s.id));
+    li.querySelector(".delete-btn")?.addEventListener("click", ()=> deleteStudent(s.id));
 
     ul.appendChild(li);
   }
 }
+
 
 
 function renderEnquiries(){
@@ -516,7 +515,9 @@ async function generatePaymentReport(){
   rows.forEach(r=>{
     const dt = (r.date||"").slice(0,10);
     const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
-    const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
+    const stu = students.find(s=>s.id===r.student_id);
+const course = stu ? getStudentCourseName(stu) : "-";
+
     html += `<tr>
       <td>${dt}</td>
       <td>${escapeHtml(r.receipt_no||"")}</td>
@@ -548,11 +549,12 @@ async function generateBalanceReport(){
 
   const rows = (students || []).map(s=>{
     const sid = s.id;
-    const totalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0);
+    const totalFee = getStudentTotalFee(s);
     const paid = feeMap[sid] ? feeMap[sid].paid : 0;
     const discount = feeMap[sid] ? feeMap[sid].discount : 0;
     const balance = Math.max(0, totalFee - paid - discount);
-    return { student_id: sid, student: s.name||"", course: s.course_name||"", totalFee, paid, discount, balance, mobile: s.mobile||s.mobile1||"" };
+    return { student_id: sid, student: s.name||"", course: getStudentCourseName(s)
+, totalFee, paid, discount, balance, mobile: s.mobile||s.mobile1||"" };
   });
 
   rows.sort((a,b)=> b.balance - a.balance);
