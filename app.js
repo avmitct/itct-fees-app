@@ -478,7 +478,7 @@ function clearEnquiryForm(){ ["enq-name","enq-dob","enq-age","enq-mobile","enq-m
 
 async function deleteEnquiry(id){ if(!confirm("ही enquiry delete करायची?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("enquiries").delete().eq("id", id); if(error){ console.error(error); alert("Error deleting enquiry"); return; } enquiries = enquiries.filter(e=> e.id !== id); renderEnquiries(); }
 
-window.convertEnquiry = async function function(id){
+window.convertEnquiry = async function(id){
   if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
   const e = enquiries.find(x=> x.id === id); if(!e) return; if(!confirm("ही enquiry admission मध्ये convert करायची?")) return;
   const mobCheck = validateMobiles(e.mobile, e.mobile2); if(!mobCheck.ok){ alert("मोबाईल नंबर चुकिचे आहेत, कृपया enquiry edit करा."); return; }
