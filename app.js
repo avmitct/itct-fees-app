@@ -119,4 +119,109 @@ function renderStudents(){
 document.addEventListener("DOMContentLoaded", ()=>{
   if($("login-btn")) $("login-btn").addEventListener("click", handleLogin);
   if($("logout-btn")) $("logout-btn").addEventListener("click", handleLogout);
+  if($("save-course-btn"))
+  $("save-course-btn").addEventListener("click", saveCourse);
+
 });
+// ================= COURSES =================
+
+// Render course list
+function renderCourses(){
+  const list = $("course-list");
+  if(!list) return;
+  list.innerHTML = "";
+
+  courses.forEach(c => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <b>${escapeHtml(c.name)}</b> - ₹${c.fee}
+      <button onclick="editCourse('${c.id}')">✏️</button>
+      <button onclick="deleteCourse('${c.id}')">🗑️</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+// Save course
+async function saveCourse(){
+  const name = $("course-name").value.trim();
+  const fee = Number($("course-fee").value || 0);
+
+  if(!name){
+    alert("Course name required");
+    return;
+  }
+
+  // Prevent duplicate
+  if(courses.some(c => c.name.toLowerCase() === name.toLowerCase())){
+    alert("Course already exists");
+    return;
+  }
+
+  const { data, error } = await supa
+    .from("courses")
+    .insert([{ name, fee }])
+    .select()
+    .single();
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  courses.push(data);
+  renderCourses();
+
+  $("course-name").value = "";
+  $("course-fee").value = "";
+}
+
+// Edit course
+async function editCourse(id){
+  const course = courses.find(c => c.id === id);
+  if(!course) return;
+
+  const newName = prompt("Edit course name:", course.name);
+  if(!newName) return;
+
+  const newFee = prompt("Edit fee:", course.fee);
+  if(newFee === null) return;
+
+  // Duplicate check
+  if(courses.some(c => c.id !== id && c.name.toLowerCase() === newName.toLowerCase())){
+    alert("Course already exists");
+    return;
+  }
+
+  const { error } = await supa
+    .from("courses")
+    .update({ name: newName.trim(), fee: Number(newFee) })
+    .eq("id", id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  course.name = newName.trim();
+  course.fee = Number(newFee);
+  renderCourses();
+}
+
+// Delete course
+async function deleteCourse(id){
+  if(!confirm("Delete this course?")) return;
+
+  const { error } = await supa
+    .from("courses")
+    .delete()
+    .eq("id", id);
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  courses = courses.filter(c => c.id !== id);
+  renderCourses();
+}
