@@ -24,7 +24,12 @@ function calcAgeFromDob(dobStr) {
 }
 
 function validateMobile(m) {
-  if (!m) return { ok: false, msg: "मोबाईल आवश्यक आहे" };
+  if (!m) return { ok: false, msg: "मोबाईल आवश्यक आहे" 
+// --- SAFETY: ensure course_name & total_fee are always saved ---
+if (!payload.course_name && course && course.name) payload.course_name = course.name;
+if (!payload.total_fee && course && course.fee) payload.total_fee = Number(course.fee);
+
+};
   const digits = m.replace(/\D/g, "");
   if (digits.length !== 10) return { ok: false, msg: "Mobile number 10 digits असावा" };
   return { ok: true, value: digits };
@@ -305,9 +310,10 @@ async function saveStudent(){
   const totalFee = course ? Number(course.fee || 0) : 0;
 
   const payload = {
+
     name, dob, age: ageVal? Number(ageVal): null,
     address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_name: course? course.id : null, course_name: course? course.name : "",
+    course_name: course ? course.name : "",
     due_date: dueDate || null, total_fee: totalFee
   };
 
