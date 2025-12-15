@@ -12,14 +12,6 @@ let users = [];
 let lastReportRows = [];
 
 // ============== Utilities =================
-function getStudentCourseName(s) {
-  return s.course_name || "";
-}
-
-function getStudentTotalFee(s) {
-  return Number(s.total_fee || 0);
-}
-
 function calcAgeFromDob(dobStr) {
   if (!dobStr) return "";
   const d = new Date(dobStr);
@@ -95,7 +87,6 @@ async function loadUsers(){
 
 // ============== Renderers =================
 function renderCourses(){
-
   const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
   if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
   courses.forEach(c=>{
@@ -188,55 +179,64 @@ async function showStudentFeesHistory(studentId){
 async function renderStudents(){
   const ul = $("list");
   if(!ul) return;
-
-  const search = ($("search")?.value || "").toLowerCase();
+  const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
   ul.innerHTML = "";
 
-  for(const s of students){
-    const hay = `${s.name} ${s.mobile} ${s.mobile2 || ""} ${s.course_name || ""}`.toLowerCase();
-    if(search && !hay.includes(search)) continue;
+  // Filter students by search
+  const visible = students.filter(s=>{
+    if(!search) return true;
+    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(search);
+  });
 
+  for(const s of visible){
+    // calculate paid & discount by querying fees table for this student
     const feeRows = await getFeesForStudent(s.id);
 
-    const paid = feeRows.reduce((a,r)=> a + Number(r.amount || 0), 0);
-    const discount = feeRows.reduce((a,r)=> a + Number(r.discount || 0), 0);
-    const totalFee = Number(s.total_fee || 0);
-    const balance = Math.max(0, totalFee - paid - discount);
+    const totalPaid = feeRows.reduce((acc,r)=> acc + (Number(r.amount||r.total_fee||0)), 0);
+    const totalDiscount = feeRows.reduce((acc,r)=> acc + (Number(r.discount||0)), 0);
+    const studentTotalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0); // adjust to your schema field
 
+    const balance = Math.max(0, studentTotalFee - totalPaid - totalDiscount);
+
+    // build item
     const li = document.createElement("li");
     li.className = "student-item";
 
     li.innerHTML = `
       <div class="info">
-        <strong>${escapeHtml(s.name)}</strong>
+        <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
         <div class="s-meta">
-          ${escapeHtml(s.course_name || "-")}
-          ${s.due_date ? ` | Due: ${s.due_date}` : ""}
-          <br>
-          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2) : ""}
+          ${escapeHtml(s.course_name || "")} ${s.due_date ? `| Due: ${s.due_date}` : ""} <br>
+          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
         </div>
-        <div class="fee-line">
-          Fee: ₹${totalFee} |
-          Paid: ₹${paid} |
-          Discount: ₹${discount} |
-          <strong>Balance: ₹${balance}</strong>
+        <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
+          Fee: ₹${studentTotalFee.toFixed(2)} | Paid: ₹${totalPaid.toFixed(2)} | Discount: ₹${totalDiscount.toFixed(2)} | <strong>Balance: ₹${balance.toFixed(2)}</strong>
         </div>
       </div>
-      <div class="actions">
-        <button class="pay-btn">फीस भरा</button>
+      <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
+        <button class="pay-btn">${"फीस भरा"}</button>
         <button class="view-btn">पहा</button>
-        ${isAdmin() ? `<button class="delete-btn">हटवा</button>` : ``}
+        <button class="delete-btn admin-only">हटवा</button>
       </div>
     `;
 
-    li.querySelector(".pay-btn")?.addEventListener("click", ()=> openFeesModal(s));
-    li.querySelector(".view-btn")?.addEventListener("click", ()=> showStudentFeesHistory(s.id));
-    li.querySelector(".delete-btn")?.addEventListener("click", ()=> deleteStudent(s.id));
+    // hook actions
+    const payBtn = li.querySelector(".pay-btn");
+    if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
+
+    const viewBtn = li.querySelector(".view-btn");
+    if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
+
+    const delBtn = li.querySelector(".delete-btn");
+    if(delBtn){
+      if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden");
+      delBtn.addEventListener("click", ()=> deleteStudent(s.id));
+    }
 
     ul.appendChild(li);
   }
 }
-
 
 
 function renderEnquiries(){
@@ -413,7 +413,6 @@ const payload = {
 
 
         // insert into supabase
-        
         const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
         if (error) {
           console.error("Fees insert error:", error);
@@ -515,9 +514,7 @@ async function generatePaymentReport(){
   rows.forEach(r=>{
     const dt = (r.date||"").slice(0,10);
     const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
-    const stu = students.find(s=>s.id===r.student_id);
-const course = stu ? getStudentCourseName(stu) : "-";
-
+    const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
     html += `<tr>
       <td>${dt}</td>
       <td>${escapeHtml(r.receipt_no||"")}</td>
@@ -549,12 +546,11 @@ async function generateBalanceReport(){
 
   const rows = (students || []).map(s=>{
     const sid = s.id;
-    const totalFee = getStudentTotalFee(s);
+    const totalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0);
     const paid = feeMap[sid] ? feeMap[sid].paid : 0;
     const discount = feeMap[sid] ? feeMap[sid].discount : 0;
     const balance = Math.max(0, totalFee - paid - discount);
-    return { student_id: sid, student: s.name||"", course: getStudentCourseName(s)
-, totalFee, paid, discount, balance, mobile: s.mobile||s.mobile1||"" };
+    return { student_id: sid, student: s.name||"", course: s.course_name||"", totalFee, paid, discount, balance, mobile: s.mobile||s.mobile1||"" };
   });
 
   rows.sort((a,b)=> b.balance - a.balance);
@@ -798,7 +794,7 @@ window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
 // ============== Refresh all =================
 async function refreshAllData(){
   await Promise.all([loadCourses(), loadStudents(), loadEnquiries(), loadFees(), loadUsers()]);
-  renderCourses(); populateCourseDropdowns(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
+  renderCourses(); renderStudents(); renderEnquiries(); renderUsers(); renderDashboard();
 }
 
 // ============== DOM INIT =================
@@ -889,253 +885,4 @@ async function handleLogin(){
   applyRoleUI(); await refreshAllData(); showSection("dashboard-section");
 }
 function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); if($("app-section")) $("app-section").classList.add("hidden"); if($("login-section")) $("login-section").classList.remove("hidden"); }
-
-
-// ===== SAFETY BINDINGS (added) =====
-window.addEventListener("load", () => {
-  const mc = document.getElementById("manage-courses-btn");
-  if (mc) mc.addEventListener("click", () => showSection("courses-section"));
-  const sc = document.getElementById("save-course-btn");
-  if (sc) sc.addEventListener("click", saveCourse);
-});
-
-
-// ===== ADD COURSE (FIXED) =====
-async function saveCourse() {
-  // Prevent duplicate
-  const existing = courses.some(c=>c.name.toLowerCase() === (document.getElementById("course-name")?.value||"").trim().toLowerCase());
-  if(existing){ alert("Course already exists"); return; }
-
-  try {
-    if (!supa) {
-      alert("Supabase client उपलब्ध नाही");
-      return;
-    }
-
-    const nameEl = document.getElementById("course-name");
-    const feeEl = document.getElementById("course-fee");
-
-    const name = nameEl ? nameEl.value.trim() : "";
-    const fee = feeEl ? feeEl.value : "";
-
-    if (!name) {
-      alert("Course नाव आवश्यक आहे");
-      return;
-    }
-
-    const { data, error } = await supa
-      .from("courses")
-      .insert([{ name: name, fee: fee ? Number(fee) : 0 }])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Course insert error:", error);
-      alert(error.message || "Course save error");
-      return;
-    }
-
-    // refresh UI
-    if (Array.isArray(courses)) courses.push(data);
-    if (typeof renderCourses === "function") renderCourses(); populateCourseDropdowns();
-
-    if (nameEl) nameEl.value = "";
-    if (feeEl) feeEl.value = "";
-
-    alert("Course added successfully");
-  } catch (e) {
-    console.error("saveCourse exception:", e);
-    alert("Unexpected error while saving course");
-  }
-}
-
-// ===== ENHANCED COURSES RENDER (Edit/Delete) =====
-function renderCourses(){
-  const ul = document.getElementById("courses-list");
-  if(!ul) return;
-  ul.innerHTML = "";
-  courses.forEach(c=>{
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <strong>${c.name}</strong> - ₹${c.fee||0}
-      <button onclick="editCourse('${c.id}')">✏️</button>
-      <button onclick="deleteCourse('${c.id}')">🗑️</button>
-    `;
-    ul.appendChild(li);
-  });
-}
-
-// ===== PREVENT DUPLICATE COURSES =====
-function isDuplicateCourse(name){
-  return courses.some(c => c.name.toLowerCase() === name.toLowerCase());
-}
-
-
-// ===== DELETE COURSE =====
-async function deleteCourse(id){
-  if(!confirm("Delete this course?")) return;
-  const {error} = await supa.from("courses").delete().eq("id", id);
-  if(error){ alert(error.message); return; }
-  courses = courses.filter(c=>c.id!==id);
-  renderCourses(); populateCourseDropdowns();
-}
-
-
-// ===== POPULATE COURSE DROPDOWNS =====
-function populateCourseDropdowns(){
-  const selects = [
-    document.getElementById("course-select"),
-    document.getElementById("enq-course-select")
-  ];
-  selects.forEach(sel=>{
-    if(!sel) return;
-    sel.innerHTML = '<option value="">-- Select Course --</option>';
-    courses.forEach(c=>{
-      const opt = document.createElement("option");
-      opt.value = c.name;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
-    });
-  });
-}
-
-
-// ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
-async function editCourse(id){
-  try{
-    const course = courses.find(c => String(c.id) === String(id));
-    if(!course){
-      alert("Course not found");
-      return;
-    }
-
-    // Ask name
-    const newName = prompt("Edit course name:", course.name);
-    if(newName === null) return;
-    const nameTrim = newName.trim();
-    if(!nameTrim){
-      alert("Course name cannot be empty");
-      return;
-    }
-
-    // Ask fee
-    const feeDefault = (course.fee !== null && course.fee !== undefined) ? course.fee : 0;
-    const newFeeInput = prompt("Edit course fee:", feeDefault);
-    if(newFeeInput === null) return;
-
-    const newFee = Number(newFeeInput);
-    if(isNaN(newFee)){
-      alert("Fee must be a number");
-      return;
-    }
-
-    // Prevent duplicate names (excluding self)
-    const duplicate = courses.some(c =>
-      String(c.id) !== String(id) &&
-      c.name.toLowerCase() === nameTrim.toLowerCase()
-    );
-    if(duplicate){
-      alert("Course already exists");
-      return;
-    }
-
-    const { data, error } = await supa
-      .from("courses")
-      .update({ name: nameTrim, fee: newFee })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if(error){
-      console.error("Edit course error:", error);
-      alert(error.message);
-      return;
-    }
-
-    // Update local cache
-    course.name = data.name;
-    course.fee = data.fee;
-
-    renderCourses();
-    populateCourseDropdowns();
-
-    alert("Course updated successfully");
-  }catch(e){
-    console.error("editCourse exception:", e);
-    alert("Unexpected error while editing course");
-  }
-}
-
-
-
-// ===== UNIVERSAL EDIT COURSE (NAME + FEE) =====
-async function editCourse(id){
-  try{
-    const course = courses.find(c => String(c.id) === String(id));
-    if(!course){
-      alert("Course not found");
-      return;
-    }
-
-    // Ask for name
-    const newName = prompt("Edit course name:", course.name);
-    if(newName === null) return;
-    const nameTrim = newName.trim();
-    if(!nameTrim){
-      alert("Course name cannot be empty");
-      return;
-    }
-
-    // Ask for fee (THIS WILL ALWAYS OPEN)
-    const feeDefault = (course.fee !== undefined && course.fee !== null) ? course.fee : 0;
-    const newFeeInput = prompt("Edit course fee:", feeDefault);
-    if(newFeeInput === null) return;
-
-    const newFee = Number(newFeeInput);
-    if(isNaN(newFee)){
-      alert("Fee must be a number");
-      return;
-    }
-
-    // Prevent duplicates (except self)
-    const duplicate = courses.some(c =>
-      String(c.id) !== String(id) &&
-      c.name.toLowerCase() === nameTrim.toLowerCase()
-    );
-    if(duplicate){
-      alert("Course already exists");
-      return;
-    }
-
-    const { data, error } = await supa
-      .from("courses")
-      .update({ name: nameTrim, fee: newFee })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if(error){
-      console.error("Edit course error:", error);
-      alert(error.message);
-      return;
-    }
-
-    // Update local cache
-    course.name = data.name;
-    course.fee  = data.fee;
-
-    renderCourses();
-    if(typeof populateCourseDropdowns === "function") populateCourseDropdowns();
-
-    alert("Course updated successfully");
-  }catch(e){
-    console.error("editCourse exception:", e);
-    alert("Unexpected error while editing course");
-  }
-}
-
-// ===== ALIASES (IMPORTANT)
-// If HTML buttons call old function names, redirect them here
-window.editCourseName = editCourse;
-window.editOnlyCourseName = editCourse;
 
