@@ -177,68 +177,7 @@ async function showStudentFeesHistory(studentId){
 }
 
 // ---------- Render students with paid/discount/balance and buttons ----------
-async function renderStudents(){
-  const ul = $("list");
-  if(!ul) return;
-  const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
-  ul.innerHTML = "";
-
-  // Filter students by search
-  const visible = students.filter(s=>{
-    if(!search) return true;
-    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
-    return hay.includes(search);
-  });
-
-  for(const s of visible){
-    // calculate paid & discount by querying fees table for this student
-    const feeRows = await getFeesForStudent(s.id);
-
-    const totalPaid = feeRows.reduce((acc,r)=> acc + (Number(r.amount||r.total_fee||0)), 0);
-    const totalDiscount = feeRows.reduce((acc,r)=> acc + (Number(r.discount||0)), 0);
-    const studentTotalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0); // adjust to your schema field
-
-    const balance = Math.max(0, studentTotalFee - totalPaid - totalDiscount);
-
-    // build item
-    const li = document.createElement("li");
-    li.className = "student-item";
-
-    li.innerHTML = `
-      <div class="info">
-        <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
-        <div class="s-meta">
-          ${escapeHtml(s.course_name || "")} ${s.due_date ? `| Due: ${s.due_date}` : ""} <br>
-          Mobile: ${escapeHtml(s.mobile || "-")}${s.mobile2 ? " / "+escapeHtml(s.mobile2):""}
-        </div>
-        <div style="margin-top:6px; font-size:0.9rem; color:var(--muted);">
-          Fee: ₹${studentTotalFee.toFixed(2)} | Paid: ₹${totalPaid.toFixed(2)} | Discount: ₹${totalDiscount.toFixed(2)} | <strong>Balance: ₹${balance.toFixed(2)}</strong>
-        </div>
-      </div>
-      <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
-        <button class="pay-btn">${"फीस भरा"}</button>
-        <button class="view-btn">पहा</button>
-        <button class="delete-btn admin-only">हटवा</button>
-      </div>
-    `;
-
-    // hook actions
-    const payBtn = li.querySelector(".pay-btn");
-    if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
-
-    const viewBtn = li.querySelector(".view-btn");
-    if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
-
-    const delBtn = li.querySelector(".delete-btn");
-    if(delBtn){
-      if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden");
-      delBtn.addEventListener("click", ()=> deleteStudent(s.id));
-    }
-
-    ul.appendChild(li);
-  }
-}
-
+async 
 
 function renderEnquiries(){
   const list=$("enquiry-list"); if(!list) return; list.innerHTML="";
@@ -1137,4 +1076,47 @@ async function editCourse(id){
 // If HTML buttons call old function names, redirect them here
 window.editCourseName = editCourse;
 window.editOnlyCourseName = editCourse;
+
+
+
+// ===== RENDER STUDENTS (COURSE, FEES, BALANCE FIXED) =====
+function renderStudents() {
+  const list = $("students-list-container");
+  if (!list) return;
+  list.innerHTML = "";
+
+  students.forEach(st => {
+    const paid = fees
+      .filter(f => String(f.student_id) === String(st.id))
+      .reduce((s, f) => s + Number(f.amount || 0), 0);
+
+    const discount = fees
+      .filter(f => String(f.student_id) === String(st.id))
+      .reduce((s, f) => s + Number(f.discount || 0), 0);
+
+    const totalFee = Number(st.total_fee || 0);
+    const balance = totalFee - paid - discount;
+
+    const div = document.createElement("div");
+    div.className = "student-card";
+
+    div.innerHTML = `
+      <h3>${escapeHtml(st.name)}</h3>
+      <p><b>Course:</b> ${escapeHtml(st.course_name || "-")}</p>
+      <p><b>Mobile:</b> ${escapeHtml(st.mobile || "-")}${st.mobile2 ? " / " + escapeHtml(st.mobile2) : ""}</p>
+      <p>
+        <b>Fee:</b> ₹${totalFee} |
+        <b>Paid:</b> ₹${paid} |
+        <b>Discount:</b> ₹${discount} |
+        <b>Balance:</b> ₹${balance}
+      </p>
+      <div class="actions">
+        <button class="secondary" onclick="editStudent('${st.id}')">✏️</button>
+        <button class="danger" onclick="deleteStudent('${st.id}')">🗑️</button>
+      </div>
+    `;
+
+    list.appendChild(div);
+  });
+}
 
