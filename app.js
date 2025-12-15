@@ -305,11 +305,17 @@ async function saveStudent(){
   const totalFee = course ? Number(course.fee || 0) : 0;
 
   const payload = {
-    name, dob, age: ageVal? Number(ageVal): null,
-    address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_name: course? course.id : null, course_name: course? course.name : "",
-    due_date: dueDate || null, total_fee: totalFee
-  };
+  name,
+  dob,
+  age: ageVal ? Number(ageVal) : null,
+  address: addr,
+  mobile: mobCheck.m1 || "",
+  mobile2: mobCheck.m2 || "",
+  course_name: course && course.name ? course.name : "",
+  total_fee: course && course.fee ? Number(course.fee) : Number(totalFee || 0),
+  due_date: dueDate || null
+};
+
 
   const { data, error } = await supa.from("students").insert(payload).select().single();
   if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
