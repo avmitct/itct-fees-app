@@ -1003,8 +1003,8 @@ function populateCourseDropdowns(){
       const opt = document.createElement("option");
 opt.value = c.id;
 opt.textContent = c.name;
-opt.dataset.fee = c.fee || 0;   // ⭐ THIS LINE FIXES EVERYTHING
 courseSelect.appendChild(opt);
+
 
     });
   });
