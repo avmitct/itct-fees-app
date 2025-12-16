@@ -1001,9 +1001,11 @@ function populateCourseDropdowns(){
     sel.innerHTML = '<option value="">-- Select Course --</option>';
     courses.forEach(c=>{
       const opt = document.createElement("option");
-      opt.value = c.name;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
+opt.value = c.id;
+opt.textContent = c.name;
+opt.dataset.fee = c.fee || 0;   // ⭐ THIS LINE FIXES EVERYTHING
+courseSelect.appendChild(opt);
+
     });
   });
 }
