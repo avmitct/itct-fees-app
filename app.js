@@ -303,13 +303,24 @@ async function saveStudent(){
   const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
   const course = courses.find(c=> String(c.id) === String(courseId));
   const totalFee = course ? Number(course.fee || 0) : 0;
+const courseSelect = document.getElementById("course-select");
+const selectedOpt = courseSelect.options[courseSelect.selectedIndex];
+
+const courseName = selectedOpt ? selectedOpt.textContent : "";
+const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
 
   const payload = {
-    name, dob, age: ageVal? Number(ageVal): null,
-    address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_name: course? course.id : null, course_name: course? course.name : "",
-    due_date: dueDate || null, total_fee: totalFee
-  };
+  name,
+  dob,
+  age: ageVal ? Number(ageVal) : null,
+  address: addr,
+  mobile: mobCheck.m1 || "",
+  mobile2: mobCheck.m2 || "",
+  course_name: courseName,   // ✅ TEXT VALUE
+  total_fee: courseFee,      // ✅ NUMBER VALUE
+  due_date: dueDate || null
+};
+
 
   const { data, error } = await supa.from("students").insert(payload).select().single();
   if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
