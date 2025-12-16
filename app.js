@@ -88,15 +88,48 @@ async function loadUsers(){
 // ============== Renderers =================
 function renderCourses(){
 
-  const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
-  if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
+ function renderCourses(){
+  const list=$("courses-list"),
+        csSel=$("course-select"),
+        enqSel=$("enq-course-select"),
+        repSel=$("report-course");
+
+  if(list) list.innerHTML="";
+  if(csSel) csSel.innerHTML="";
+  if(enqSel) enqSel.innerHTML="";
+  if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
+
   courses.forEach(c=>{
-    if(list){const li=document.createElement("li"); li.textContent=`${c.name} – ₹${c.fee||0}`; list.appendChild(li);}
-    if(csSel){const opt=document.createElement("option"); opt.value=c.id; opt.textContent=`${c.name} (₹${c.fee||0})`; csSel.appendChild(opt);}
-    if(enqSel){const opt2=document.createElement("option"); opt2.value=c.name; opt2.textContent=c.name; enqSel.appendChild(opt2);}
-    if(repSel){const opt3=document.createElement("option"); opt3.value=c.name; opt3.textContent=c.name; repSel.appendChild(opt3);}
+    if(list){
+      const li=document.createElement("li");
+      li.textContent=`${c.name} – ₹${c.fee}`;
+      list.appendChild(li);
+    }
+
+    if(csSel){
+      const opt=document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      opt.dataset.fee = c.fee;   // ✅ IMPORTANT
+      csSel.appendChild(opt);
+    }
+
+    if(enqSel){
+      const opt2=document.createElement("option");
+      opt2.value=c.name;
+      opt2.textContent=c.name;
+      enqSel.appendChild(opt2);
+    }
+
+    if(repSel){
+      const opt3=document.createElement("option");
+      opt3.value=c.name;
+      opt3.textContent=c.name;
+      repSel.appendChild(opt3);
+    }
   });
 }
+
 
 // ---------- Get fees rows for a student ----------
 async function getFeesForStudent(studentId){
@@ -290,32 +323,60 @@ function renderDashboard(){
 async function saveStudent(){
   if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
 
-  const name = ($("name") || {}).value?.trim() || "";
-  const dob = ($("dob") || {}).value || null;
-  const ageVal = ($("age") || {}).value?.trim() || "";
-  const addr = ($("address") || {}).value?.trim() || "";
-  const m1 = ($("mobile") || {}).value?.trim() || "";
-  const m2 = ($("mobile2") || {}).value?.trim() || "";
-  const courseId = ($("course-select") || {}).value;
-  const dueDate = ($("course-duedate") || {}).value;
+  const name = $("name").value.trim();
+  const dob = $("dob").value || null;
+  const ageVal = $("age").value || null;
+  const addr = $("address").value.trim();
+  const m1 = $("mobile").value.trim();
+  const m2 = $("mobile2").value.trim();
+  const dueDate = $("course-duedate").value || null;
 
   if(!name){ alert("नाव आवश्यक आहे"); return; }
-  const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
-  const course = courses.find(c=> String(c.id) === String(courseId));
-  const totalFee = course ? Number(course.fee || 0) : 0;
+
+  const mobCheck = validateMobiles(m1,m2);
+  if(!mobCheck.ok){ alert(mobCheck.msg); return; }
+
+  const courseSelect = $("course-select");
+  if(!courseSelect || courseSelect.selectedIndex < 0){
+    alert("कृपया course निवडा");
+    return;
+  }
+
+  const opt = courseSelect.options[courseSelect.selectedIndex];
+  const courseName = opt.textContent;                 // ✅ COURSE NAME
+  const totalFee  = Number(opt.dataset.fee || 0);     // ✅ COURSE FEE
 
   const payload = {
-    name, dob, age: ageVal? Number(ageVal): null,
-    address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_name: course? course.id : null, course_name: course? course.name : "",
-    due_date: dueDate || null, total_fee: totalFee
+    name,
+    dob,
+    age: ageVal ? Number(ageVal) : null,
+    address: addr,
+    mobile: mobCheck.m1,
+    mobile2: mobCheck.m2,
+    course_name: courseName,   // ✅ FIXED
+    total_fee: totalFee,       // ✅ FIXED
+    due_date: dueDate
   };
 
-  const { data, error } = await supa.from("students").insert(payload).select().single();
-  if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
+  const { data, error } = await supa
+    .from("students")
+    .insert(payload)
+    .select()
+    .single();
+
+  if(error){
+    console.error(error);
+    alert("Student save error");
+    return;
+  }
+
   students.unshift(data);
-  clearStudentForm(); renderStudents(); renderDashboard(); showSection("students-list");
+  clearStudentForm();
+  renderStudents();
+  renderDashboard();
+  showSection("students-list");
 }
+
 
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
