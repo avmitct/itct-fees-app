@@ -844,7 +844,13 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
-
+// Student list search (LIVE FILTER)
+const searchInput = $("search");
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    renderStudents();
+  });
+}
     // Student
     if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
     if($("cancel-student-btn")) $("cancel-student-btn").addEventListener("click", ()=>{ clearStudentForm(); showSection("students-list"); });
