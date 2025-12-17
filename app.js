@@ -1023,6 +1023,7 @@ function populateCourseDropdowns(){
       const opt = document.createElement("option");
       opt.value = c.name;
       opt.textContent = c.name;
+      opt.dataset.fee = c.fee || 0;   // ⭐ THIS LINE IS MANDATORY
       sel.appendChild(opt);
     });
   });
