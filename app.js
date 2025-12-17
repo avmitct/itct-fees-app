@@ -86,17 +86,38 @@ async function loadUsers(){
 }
 
 // ============== Renderers =================
-function renderCourses(){
+// ============== Students CRUD =================
+async function saveStudent(){
+  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
 
-  const list=$("courses-list"), csSel=$("course-select"), enqSel=$("enq-course-select"), repSel=$("report-course");
-  if(list) list.innerHTML=""; if(csSel) csSel.innerHTML=""; if(enqSel) enqSel.innerHTML=""; if(repSel) repSel.innerHTML=`<option value="">-- सर्व कोर्स --</option>`;
-  courses.forEach(c=>{
-    if(list){const li=document.createElement("li"); li.textContent=`${c.name} – ₹${c.fee||0}`; list.appendChild(li);}
-    if(csSel){const opt=document.createElement("option"); opt.value=c.id; opt.textContent=`${c.name} (₹${c.fee||0})`; csSel.appendChild(opt);}
-    if(enqSel){const opt2=document.createElement("option"); opt2.value=c.name; opt2.textContent=c.name; enqSel.appendChild(opt2);}
-    if(repSel){const opt3=document.createElement("option"); opt3.value=c.name; opt3.textContent=c.name; repSel.appendChild(opt3);}
-  });
+  const name = ($("name") || {}).value?.trim() || "";
+  const dob = ($("dob") || {}).value || null;
+  const ageVal = ($("age") || {}).value?.trim() || "";
+  const addr = ($("address") || {}).value?.trim() || "";
+  const m1 = ($("mobile") || {}).value?.trim() || "";
+  const m2 = ($("mobile2") || {}).value?.trim() || "";
+  const courseId = ($("course-select") || {}).value;
+  const dueDate = ($("course-duedate") || {}).value;
+
+  if(!name){ alert("नाव आवश्यक आहे"); return; }
+  const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
+ 
+  const payload = {
+    name, dob, age: ageVal? Number(ageVal): null,
+    address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
+    course_name: course? course.id : null, course_name: course? course.name : "",
+    due_date: dueDate || null, total_fee: totalFee
+  };
+
+  const { data, error } = await supa.from("students").insert(payload).select().single();
+  if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
+  students.unshift(data);
+  clearStudentForm(); renderStudents(); renderDashboard(); showSection("students-list");
 }
+
+function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
+
+async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
 
 // ---------- Get fees rows for a student ----------
 async function getFeesForStudent(studentId){
@@ -301,15 +322,25 @@ async function saveStudent(){
 
   if(!name){ alert("नाव आवश्यक आहे"); return; }
   const mobCheck = validateMobiles(m1,m2); if(!mobCheck.ok){ alert(mobCheck.msg); return; }
-  const course = courses.find(c=> String(c.id) === String(courseId));
-  const totalFee = course ? Number(course.fee || 0) : 0;
+  
+const courseSelect = $("course-select");
+const selectedOpt = courseSelect?.options[courseSelect.selectedIndex];
 
-  const payload = {
-    name, dob, age: ageVal? Number(ageVal): null,
-    address: addr, mobile: mobCheck.m1||"", mobile2: mobCheck.m2||"",
-    course_name: course? course.id : null, course_name: course? course.name : "",
-    due_date: dueDate || null, total_fee: totalFee
-  };
+const courseName = selectedOpt ? selectedOpt.value : "";
+const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
+
+ const payload = {
+  name,
+  dob,
+  age: ageVal ? Number(ageVal) : null,
+  address: addr,
+  mobile: mobCheck.m1 || "",
+  mobile2: mobCheck.m2 || "",
+  course_name: courseName,   // ✅ correct
+  total_fee: courseFee,      // ✅ correct
+  due_date: dueDate || null
+};
+
 
   const { data, error } = await supa.from("students").insert(payload).select().single();
   if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
