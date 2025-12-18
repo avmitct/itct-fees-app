@@ -543,6 +543,8 @@ async function generatePaymentReport(){
 
   const rows = (fees || []).slice().sort((a,b)=> (b.date||"").localeCompare(a.date||""));
   let html = `<h4>Payment Report (All payments)</h4>`;
+  const selectedCourse = $("report-course")?.value || "";
+
   if(rows.length === 0){
     if($("report-output")) $("report-output").innerHTML = `<div>No payment records found.</div>`;
     lastReportRows = [];
@@ -558,6 +560,8 @@ async function generatePaymentReport(){
     const dt = (r.date||"").slice(0,10);
     const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
     const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
+      if (selectedCourse && course !== selectedCourse) return;
+
     html += `<tr>
       <td>${dt}</td>
       <td>${escapeHtml(r.receipt_no||"")}</td>
@@ -588,6 +592,8 @@ async function generateBalanceReport(){
   });
 
   const rows = (students || []).map(s=>{
+    const selectedCourse = $("report-course")?.value || "";
+
     const sid = s.id;
     const totalFee = Number(s.total_fee || s.course_fee || s.course_amount || 0);
     const paid = feeMap[sid] ? feeMap[sid].paid : 0;
@@ -607,6 +613,8 @@ async function generateBalanceReport(){
 
   const outRows = [];
   rows.forEach(r=>{
+      if (selectedCourse && r.course !== selectedCourse) return;
+
     html += `<tr>
       <td>${escapeHtml(r.student)}</td>
       <td>${escapeHtml(r.mobile)}</td>
@@ -648,6 +656,8 @@ async function generateDueReport(){
   }).filter(s => s.balance > 0);
 
   let filtered = candidates;
+  const selectedCourse = $("report-course")?.value || "";
+
   if(from || to){
     filtered = candidates.filter(s=>{
       const due = s.due_date || s.due_date || "";
@@ -667,6 +677,8 @@ async function generateDueReport(){
 
   const outRows = [];
   filtered.forEach(s=>{
+      if (selectedCourse && s.course_name !== selectedCourse) return;
+
     const due = s.due_date || s.due_date || "-";
     html += `<tr>
       <td>${escapeHtml(s.name)}</td>
