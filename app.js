@@ -864,7 +864,8 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("students-list-btn")) $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));populateReportCourse();
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
-    if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+    if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));});
+    
 // Student list search (LIVE FILTER)
 // Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
@@ -1058,18 +1059,23 @@ function populateCourseDropdowns(){
   });
 }
 function populateReportCourse(){
-  const repSel = document.getElementById("report-course");
-  if(!repSel) return;
+  const sel = $("report-course");
+  if(!sel) return;
 
-  repSel.innerHTML = '<option value="">-- सर्व कोर्स --</option>';
+  sel.innerHTML = `<option value="">-- सर्व कोर्स --</option>`;
 
-  courses.forEach(c=>{
+  const unique = [...new Set(
+    students.map(s => s.course_name).filter(Boolean)
+  )];
+
+  unique.forEach(cn=>{
     const opt = document.createElement("option");
-    opt.value = c.name;
-    opt.textContent = c.name;
-    repSel.appendChild(opt);
+    opt.value = cn;          // ⭐ IMPORTANT
+    opt.textContent = cn;
+    sel.appendChild(opt);
   });
 }
+
 
 
 // ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
