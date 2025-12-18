@@ -851,7 +851,7 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("add-student-btn")) $("add-student-btn").addEventListener("click", ()=> showSection("student-form"));
     if($("enquiry-btn")) $("enquiry-btn").addEventListener("click", ()=> showSection("enquiry-section"));
     if($("students-list-btn")) $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
-    if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
+    if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));populateReportCourse();
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
 // Student list search (LIVE FILTER)
