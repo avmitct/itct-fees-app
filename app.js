@@ -904,7 +904,8 @@ if (searchInput) {
         if($("current-user-role")) $("current-user-role").textContent = currentUser.role; 
         if($("login-section")) $("login-section").classList.add("hidden"); 
         if($("app-section")) $("app-section").classList.remove("hidden"); 
-        applyRoleUI(); await refreshAllData(); showSection("dashboard-section"); 
+        applyRoleUI(); await refreshAllData();populateReportCourse();
+ showSection("dashboard-section"); 
       }catch(e){ console.error(e); localStorage.removeItem("itct_current_user"); } 
     }
 
@@ -1031,7 +1032,7 @@ function populateCourseDropdowns(){
   const selects = [
     document.getElementById("course-select"),
     document.getElementById("enq-course-select")
-     document.getElementById("report-course")   // ✅ ADD THIS LINE
+     
   ];
   selects.forEach(sel=>{
     if(!sel) return;
@@ -1043,6 +1044,19 @@ function populateCourseDropdowns(){
       opt.dataset.fee = c.fee || 0;   // ⭐ THIS LINE IS MANDATORY
       sel.appendChild(opt);
     });
+  });
+}
+function populateReportCourse(){
+  const repSel = document.getElementById("report-course");
+  if(!repSel) return;
+
+  repSel.innerHTML = '<option value="">-- सर्व कोर्स --</option>';
+
+  courses.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.textContent = c.name;
+    repSel.appendChild(opt);
   });
 }
 
