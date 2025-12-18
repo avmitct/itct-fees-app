@@ -1031,6 +1031,7 @@ function populateCourseDropdowns(){
   const selects = [
     document.getElementById("course-select"),
     document.getElementById("enq-course-select")
+     document.getElementById("report-course")   // ✅ ADD THIS LINE
   ];
   selects.forEach(sel=>{
     if(!sel) return;
