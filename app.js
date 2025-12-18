@@ -201,9 +201,13 @@ async function showStudentFeesHistory(studentId){
 async function renderStudents(){
   const ul = $("list");
   if(!ul) return;
+  
   const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
-  ul.innerHTML = "";
-ul.replaceChildren(); // 💯 prevents duplicate rendering
+  // 🔒 HARD RESET — prevents duplicate rendering
+  while (ul.firstChild) {
+    ul.removeChild(ul.firstChild);
+  }
+
   // Filter students by search
   const visible = students.filter(s=>{
     if(!search) return true;
@@ -845,12 +849,12 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
 // Student list search (LIVE FILTER)
+// Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
 if (searchInput) {
-  searchInput.addEventListener("input", () => {
-    renderStudents();
-  });
+  searchInput.oninput = () => renderStudents(); // overwrite, no stacking
 }
+
     // Student
     if($("save-student-btn")) $("save-student-btn").addEventListener("click", saveStudent);
     if($("cancel-student-btn")) $("cancel-student-btn").addEventListener("click", ()=>{ clearStudentForm(); showSection("students-list"); });
