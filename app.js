@@ -1027,23 +1027,30 @@ async function deleteCourse(id){
 
 
 // ===== POPULATE COURSE DROPDOWNS =====
+// ===== POPULATE COURSE DROPDOWNS (STUDENT + ENQUIRY + REPORTS) =====
 function populateCourseDropdowns(){
   const selects = [
-    document.getElementById("course-select"),
-    document.getElementById("enq-course-select")
+    document.getElementById("course-select"),       // Student admission
+    document.getElementById("enq-course-select"),   // Enquiry
+    document.getElementById("report-course")        // ✅ Reports (FIX)
   ];
+
   selects.forEach(sel=>{
     if(!sel) return;
-    sel.innerHTML = '<option value="">-- Select Course --</option>';
+
+    // Default option
+    sel.innerHTML = '<option value="">-- सर्व कोर्स --</option>';
+
     courses.forEach(c=>{
       const opt = document.createElement("option");
-      opt.value = c.name;
-      opt.textContent = c.name;
-      opt.dataset.fee = c.fee || 0;   // ⭐ THIS LINE IS MANDATORY
+      opt.value = c.name;          // course_name is TEXT everywhere
+      opt.textContent = c.name;    // visible text
+      opt.dataset.fee = c.fee || 0; // needed for student admission
       sel.appendChild(opt);
     });
   });
 }
+
 
 
 // ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
