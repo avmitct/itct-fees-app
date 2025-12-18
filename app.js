@@ -10,6 +10,7 @@ let enquiries = [];
 let fees = [];
 let users = [];
 let lastReportRows = [];
+let renderStudentsToken = 0;
 
 // ============== Utilities =================
 function calcAgeFromDob(dobStr) {
@@ -199,23 +200,28 @@ async function showStudentFeesHistory(studentId){
 
 // ---------- Render students with paid/discount/balance and buttons ----------
 async function renderStudents(){
+  const token = ++renderStudentsToken; // 🔒 lock
   const ul = $("list");
   if(!ul) return;
-  
+
   const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
-  // 🔒 HARD RESET — prevents duplicate rendering
-  while (ul.firstChild) {
-    ul.removeChild(ul.firstChild);
-  }
+
+  // clear list safely
+  ul.innerHTML = "";
 
   // Filter students by search
   const visible = students.filter(s=>{
     if(!search) return true;
-    const hay = [s.name, s.mobile, s.mobile2, s.course_name].filter(Boolean).join(" ").toLowerCase();
+    const hay = [s.name, s.mobile, s.mobile2, s.course_name]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
     return hay.includes(search);
   });
 
+
   for(const s of visible){
+if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
     // calculate paid & discount by querying fees table for this student
     const feeRows = await getFeesForStudent(s.id);
 
