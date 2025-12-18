@@ -612,8 +612,10 @@ async function generateBalanceReport(){
   </tr></thead><tbody>`;
 
   const outRows = [];
+  const selectedCourse = $("report-course")?.value || "";
+
   rows.forEach(r=>{
-      if (selectedCourse && r.course !== selectedCourse) return;
+       if (selectedCourse && String(r.course).trim() !== String(selectedCourse).trim()) return;
 
     html += `<tr>
       <td>${escapeHtml(r.student)}</td>
