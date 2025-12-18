@@ -203,7 +203,7 @@ async function renderStudents(){
   if(!ul) return;
   const search = ($("search") ? $("search").value.trim().toLowerCase() : "");
   ul.innerHTML = "";
-
+ul.replaceChildren(); // 💯 prevents duplicate rendering
   // Filter students by search
   const visible = students.filter(s=>{
     if(!search) return true;
