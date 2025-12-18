@@ -543,8 +543,6 @@ async function generatePaymentReport(){
 
   const rows = (fees || []).slice().sort((a,b)=> (b.date||"").localeCompare(a.date||""));
   let html = `<h4>Payment Report (All payments)</h4>`;
-  const selectedCourse = $("report-course")?.value || "";
-
   if(rows.length === 0){
     if($("report-output")) $("report-output").innerHTML = `<div>No payment records found.</div>`;
     lastReportRows = [];
@@ -560,8 +558,6 @@ async function generatePaymentReport(){
     const dt = (r.date||"").slice(0,10);
     const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
     const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
-      if (selectedCourse && course !== selectedCourse) return;
-
     html += `<tr>
       <td>${dt}</td>
       <td>${escapeHtml(r.receipt_no||"")}</td>
@@ -590,7 +586,6 @@ async function generateBalanceReport(){
     feeMap[sid].paid += Number(f.amount || f.total_fee || 0);
     feeMap[sid].discount += Number(f.discount || 0);
   });
-const selectedCourse = $("report-course")?.value || "";
 
   const rows = (students || []).map(s=>{
     const sid = s.id;
@@ -612,8 +607,6 @@ const selectedCourse = $("report-course")?.value || "";
 
   const outRows = [];
   rows.forEach(r=>{
-      if (selectedCourse && r.course !== selectedCourse) return;
-
     html += `<tr>
       <td>${escapeHtml(r.student)}</td>
       <td>${escapeHtml(r.mobile)}</td>
@@ -655,8 +648,6 @@ async function generateDueReport(){
   }).filter(s => s.balance > 0);
 
   let filtered = candidates;
-  const selectedCourse = $("report-course")?.value || "";
-
   if(from || to){
     filtered = candidates.filter(s=>{
       const due = s.due_date || s.due_date || "";
@@ -676,8 +667,6 @@ async function generateDueReport(){
 
   const outRows = [];
   filtered.forEach(s=>{
-      if (selectedCourse && s.course_name !== selectedCourse) return;
-
     const due = s.due_date || s.due_date || "-";
     html += `<tr>
       <td>${escapeHtml(s.name)}</td>
@@ -862,10 +851,9 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("add-student-btn")) $("add-student-btn").addEventListener("click", ()=> showSection("student-form"));
     if($("enquiry-btn")) $("enquiry-btn").addEventListener("click", ()=> showSection("enquiry-section"));
     if($("students-list-btn")) $("students-list-btn").addEventListener("click", ()=> showSection("students-list"));
-    if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));populateReportCourse();
+    if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
-    
 // Student list search (LIVE FILTER)
 // Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
@@ -916,8 +904,7 @@ if (searchInput) {
         if($("current-user-role")) $("current-user-role").textContent = currentUser.role; 
         if($("login-section")) $("login-section").classList.add("hidden"); 
         if($("app-section")) $("app-section").classList.remove("hidden"); 
-        applyRoleUI(); await refreshAllData();populateReportCourse();
- showSection("dashboard-section"); 
+        applyRoleUI(); await refreshAllData(); showSection("dashboard-section"); 
       }catch(e){ console.error(e); localStorage.removeItem("itct_current_user"); } 
     }
 
@@ -1044,7 +1031,6 @@ function populateCourseDropdowns(){
   const selects = [
     document.getElementById("course-select"),
     document.getElementById("enq-course-select")
-     
   ];
   selects.forEach(sel=>{
     if(!sel) return;
@@ -1058,24 +1044,6 @@ function populateCourseDropdowns(){
     });
   });
 }
-function populateReportCourse(){
-  const sel = $("report-course");
-  if(!sel) return;
-
-  sel.innerHTML = `<option value="">-- सर्व कोर्स --</option>`;
-
-  const unique = [...new Set(
-    students.map(s => s.course_name).filter(Boolean)
-  )];
-
-  unique.forEach(cn=>{
-    const opt = document.createElement("option");
-    opt.value = cn;          // ⭐ IMPORTANT
-    opt.textContent = cn;
-    sel.appendChild(opt);
-  });
-}
-
 
 
 // ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
