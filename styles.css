@@ -460,19 +460,23 @@ input[readonly] {
   flex: 1 1 240px;
 }
 
-.card-with-art .card-art {
+/* ✅ LOGIN PAGE ONLY IMAGE */
+#login-section .card-with-art .card-art {
   flex: 0 0 180px;
   display: flex;
   align-items: center;
   justify-content: center;
- /* ✅ CORRECT IMAGE PATH */
   background-image: url("Key.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-
-  min-height: 180px;
 }
+
+/* ✅ DASHBOARD & OTHER PAGES – DO NOT USE LOGIN IMAGE */
+#app-section .card-with-art .card-art {
+  background-image: none !important;
+}
+
 
 /* SVG illustrations inside cards */
 .card-with-art .card-art svg {
