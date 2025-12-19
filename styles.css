@@ -466,7 +466,7 @@ input[readonly] {
   align-items: center;
   justify-content: center;
   /* 🔽 NEW IMAGE */
-  background-image: url("assets/login-key.png");
+  background-image: url("login-key.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
