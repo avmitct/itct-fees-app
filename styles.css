@@ -461,7 +461,7 @@ input[readonly] {
 }
 
 /* ✅ LOGIN PAGE ONLY IMAGE */
-#login-section .card-with-art .card-art {
+#login-section .card-art {
   flex: 0 0 180px;
   display: flex;
   align-items: center;
@@ -471,6 +471,7 @@ input[readonly] {
   background-position: center;
   background-size: contain;
 }
+
 
 /* ✅ DASHBOARD & OTHER PAGES – DO NOT USE LOGIN IMAGE */
 #app-section .card-with-art .card-art {
