@@ -1045,9 +1045,20 @@ if($("edit-fee-cancel-btn")){
   });
 }
 
-if($("edit-fee-save-btn")){
-  $("edit-fee-save-btn").addEventListener("click", saveEditedFee);
+// ===== Edit Fee Save / Cancel =====
+const feeSaveBtn = document.getElementById("edit-fee-save-btn");
+if(feeSaveBtn){
+  feeSaveBtn.addEventListener("click", saveEditedFee);
 }
+
+const feeCancelBtn = document.getElementById("edit-fee-cancel-btn");
+if(feeCancelBtn){
+  feeCancelBtn.addEventListener("click", ()=>{
+    document.getElementById("edit-fee-modal").classList.add("hidden");
+    editingFeeId = null;
+  });
+}
+
 
 // Student list search (LIVE FILTER)
 // Student list search (LIVE FILTER – SAFE)
