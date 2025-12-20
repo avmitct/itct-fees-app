@@ -373,29 +373,61 @@ async function deleteStudent(id){ if(!confirm("हा विद्यार्�
 async function editStudent(student){
   if(!isAdmin()) return;
 
+  // 1️⃣ Name
   const newName = prompt("Edit name:", student.name);
   if(newName === null) return;
 
+  // 2️⃣ Mobile
   const newMobile = prompt("Edit mobile:", student.mobile || "");
   if(newMobile === null) return;
 
+  // 3️⃣ Course selection (text-based)
+  const courseNames = courses.map(c => c.name).join("\n");
+  const newCourse = prompt(
+    "Edit course (type exact name from list below):\n\n" + courseNames,
+    student.course_name || ""
+  );
+  if(newCourse === null) return;
+
+  // find course fee
+  const courseObj = courses.find(c => c.name === newCourse);
+  if(!courseObj){
+    alert("Invalid course name. Please type exactly as shown.");
+    return;
+  }
+
+  // 4️⃣ Update in Supabase
   const { error } = await supa
     .from("students")
     .update({
       name: newName.trim(),
-      mobile: newMobile.trim()
+      mobile: newMobile.trim(),
+      course_name: courseObj.name,
+      total_fee: Number(courseObj.fee || 0)
     })
     .eq("id", student.id);
 
   if(error){
-    alert("Error updating student");
+    alert("Student update करताना त्रुटी");
     console.error(error);
     return;
   }
 
+  // 5️⃣ Update local array (UI refresh without reload)
+  const idx = students.findIndex(s => s.id === student.id);
+  if(idx !== -1){
+    students[idx].name = newName.trim();
+    students[idx].mobile = newMobile.trim();
+    students[idx].course_name = courseObj.name;
+    students[idx].total_fee = Number(courseObj.fee || 0);
+  }
+
   alert("Student updated successfully");
-  await refreshStudents(); // re-load list
+
+  renderStudents();
+  renderDashboard();
 }
+
 
 // placeholders
 // Replace your existing openFeesModal function with this one.
