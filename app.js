@@ -141,6 +141,7 @@ async function getFeesForStudent(studentId){
 }
 
 // ---------- Show fee history modal for a student ----------
+
 async function showStudentFeesHistory(studentId){
   const s = students.find(x => x.id === studentId);
   if(!s){
@@ -150,48 +151,57 @@ async function showStudentFeesHistory(studentId){
 
   const feeRows = await getFeesForStudent(studentId);
 
-  // Build modal UI (uses #modal container from earlier)
   let modal = document.getElementById("modal");
   if(!modal){
     modal = document.createElement("div");
     modal.id = "modal";
     document.body.appendChild(modal);
   }
+
   modal.classList.remove("hidden");
   modal.innerHTML = "";
 
   const card = document.createElement("div");
   card.className = "modal-card";
-const rowsHtml = feeRows.length ? feeRows.map(f=>{
-  const dt = (f.date||"").slice(0,10);
 
-  return `
-  <div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
-    
-    <div>
-      <strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>
-      <small style="color:var(--muted)">(${dt})</small>
-    </div>
+  let rowsHtml = "";
+  if(feeRows.length){
+    rowsHtml = feeRows.map(f=>{
+      const dt = (f.date||"").slice(0,10);
 
-    <div style="font-size:0.85rem;color:var(--muted)">
-      Discount: ₹${Number(f.discount||0).toFixed(2)}
-      ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}
-    </div>
+      return `
+        <div class="fee-row" style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.08)">
+          <div>
+            <strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>
+            <small style="color:var(--muted)"> (${dt})</small>
+          </div>
 
-    ${isAdmin() ? `
-      <button class="btn-small secondary"
-        onclick="openEditFeesModal('${f.id}')">
-        ✏️ Edit
-      </button>` : ""}
+          <div style="font-size:0.85rem;color:var(--muted)">
+            Discount: ₹${Number(f.discount||0).toFixed(2)}
+            ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}
+          </div>
 
-  </div>`;
-}).join("") : `<div>No fee records found.</div>`;
+          ${isAdmin() ? `
+            <button class="edit-fee-btn btn-small secondary"
+              data-fee-id="${f.id}">
+              ✏️ Edit
+            </button>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
+  } else {
+    rowsHtml = `<div>No fee records found.</div>`;
+  }
 
-  
   card.innerHTML = `
     <h3>Fees — ${escapeHtml(s.name || "")}</h3>
-    <div style="margin:6px 0 12px 0; color:var(--muted)">Total fee: ₹${Number(s.total_fee || s.course_fee || 0).toFixed(2)}</div>
+    <div style="margin:6px 0 12px 0;color:var(--muted)">
+      Total fee: ₹${Number(s.total_fee || 0).toFixed(2)}
+    </div>
+
     <div>${rowsHtml}</div>
+
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button id="modal-fees-add" class="btn-primary">Add Fees</button>
       <button id="modal-close" class="btn-small secondary">Close</button>
@@ -200,19 +210,114 @@ const rowsHtml = feeRows.length ? feeRows.map(f=>{
 
   modal.appendChild(card);
 
-  // events
-  const closeBtn = document.getElementById("modal-close");
-  if(closeBtn) closeBtn.addEventListener("click", ()=>{
-    modal.classList.add("hidden");
-    modal.innerHTML = "";
-  });
+  // Close
+  document.getElementById("modal-close")
+    .addEventListener("click", closeModal);
 
-  const addBtn = document.getElementById("modal-fees-add");
-  if(addBtn) addBtn.addEventListener("click", ()=>{
-    modal.classList.add("hidden"); modal.innerHTML = "";
-    if(typeof openFeesModal === "function") openFeesModal(s);
-    else alert("Fees modal not found");
-  });
+  // Add fees
+  document.getElementById("modal-fees-add")
+    .addEventListener("click", ()=>{
+      closeModal();
+      openFeesModal(s);
+    });
+
+  // 🔥 ADMIN: bind edit buttons (NO onclick)
+  if(isAdmin()){
+    modal.querySelectorAll(".edit-fee-btn").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        openEditFeesModal(btn.dataset.feeId);
+      });
+    });
+  }
+}
+
+let editingFeeId = null;
+
+async function openEditFeesModal(feeId){
+  if(!isAdmin()) return;
+
+  const fee = fees.find(f => f.id === feeId);
+  if(!fee){
+    alert("Fee record not found");
+    return;
+  }
+
+  editingFeeId = feeId;
+
+  const modal = document.getElementById("modal");
+  modal.classList.remove("hidden");
+
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>✏️ Edit Fees</h3>
+
+      <label>Amount</label>
+      <input id="edit-fee-amount" type="number"
+        value="${fee.amount || fee.total_fee || 0}">
+
+      <label>Discount</label>
+      <input id="edit-fee-discount" type="number"
+        value="${fee.discount || 0}">
+
+      <label>Receipt No</label>
+      <input id="edit-fee-receipt" type="text"
+        value="${fee.receipt_no || ""}">
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button id="save-edit-fee" class="btn-primary">Update</button>
+        <button id="cancel-edit-fee" class="secondary">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("save-edit-fee")
+    .addEventListener("click", saveEditedFee);
+
+  document.getElementById("cancel-edit-fee")
+    .addEventListener("click", closeModal);
+}
+
+async function saveEditedFee(){
+  if(!editingFeeId) return;
+
+  const amount = Number(document.getElementById("edit-fee-amount").value || 0);
+  const discount = Number(document.getElementById("edit-fee-discount").value || 0);
+  const receipt = document.getElementById("edit-fee-receipt").value.trim();
+
+  if(amount <= 0){
+    alert("Amount must be greater than 0");
+    return;
+  }
+
+  const { error } = await supa
+    .from("fees")
+    .update({
+      amount: amount,
+      discount: discount,
+      receipt_no: receipt
+    })
+    .eq("id", editingFeeId);
+
+  if(error){
+    console.error(error);
+    alert("Fees update failed");
+    return;
+  }
+
+  alert("Fees updated successfully");
+
+  editingFeeId = null;
+  closeModal();
+
+  await loadFees();
+  renderStudents();
+  renderDashboard();
+}
+
+function closeModal(){
+  const modal = document.getElementById("modal");
+  modal.classList.add("hidden");
+  modal.innerHTML = "";
 }
 
 // ---------- Render students with paid/discount/balance and buttons ----------
