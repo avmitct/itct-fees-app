@@ -423,15 +423,23 @@ function editStudent(student){
 
   $("edit-student-modal").classList.remove("hidden");
 }
-let editingFee = null;
+let editingFeeId = null;
 
 function editFee(fee){
+  console.log("EDIT FEE CLICKED", fee);
+
   editingFeeId = fee.id;
+
+  const modal = document.getElementById("edit-fee-modal");
+  if(!modal){
+    alert("Edit Fee modal not found in HTML");
+    return;
+  }
 
   document.getElementById("edit-fee-amount").value = fee.amount || 0;
   document.getElementById("edit-fee-receipt").value = fee.receipt_no || "";
 
-  document.getElementById("edit-fee-modal").classList.remove("hidden");
+  modal.classList.remove("hidden");
 }
 
 
