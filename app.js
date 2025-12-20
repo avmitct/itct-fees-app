@@ -474,8 +474,7 @@ async function openFeesModal(student) {
 // ================= FEES EDIT =================
 
 let editingFeeId = null;
-
-async function openEditFeesModal(feeId){
+window.openEditFeesModal = async function (feeId){
   if(!isAdmin()) return;
 
   const fee = fees.find(f => f.id === feeId);
@@ -511,14 +510,9 @@ async function openEditFeesModal(feeId){
       </div>
     </div>
   `;
-}
+};
 
-function closeModal(){
-  const modal = document.getElementById("modal");
-  modal.classList.add("hidden");
-  modal.innerHTML = "";
-}
-async function saveEditedFee(){
+window.saveEditedFee = async function (){
   if(!editingFeeId) return;
 
   const amount = Number(document.getElementById("edit-fee-amount").value || 0);
@@ -553,7 +547,15 @@ async function saveEditedFee(){
   await loadFees();
   renderStudents();
   renderDashboard();
-}
+};
+
+window.closeModal = function (){
+  const modal = document.getElementById("modal");
+  modal.classList.add("hidden");
+  modal.innerHTML = "";
+};
+
+
 
   // modal container (index.html मध्ये #modal असावे)
   let modal = document.getElementById("modal");
