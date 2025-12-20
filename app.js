@@ -426,16 +426,14 @@ function editStudent(student){
 let editingFee = null;
 
 function editFee(fee){
-  console.log("EDIT FEE CLICKED:", fee);
-
   editingFeeId = fee.id;
 
-  $("edit-fee-amount").value = fee.amount || 0;
-  $("edit-fee-receipt").value = fee.receipt_no || "";
-  $("edit-fee-discount").value = fee.discount || 0;
+  document.getElementById("edit-fee-amount").value = fee.amount || 0;
+  document.getElementById("edit-fee-receipt").value = fee.receipt_no || "";
 
-  $("edit-fee-modal").classList.remove("hidden");
+  document.getElementById("edit-fee-modal").classList.remove("hidden");
 }
+
 
 async function saveEditedFee(){
   if(!editingFeeId){
