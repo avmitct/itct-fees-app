@@ -11,6 +11,7 @@ let fees = [];
 let users = [];
 let lastReportRows = [];
 let renderStudentsToken = 0;
+let editingFeeId = null;
 
 // ============== Utilities =================
 function calcAgeFromDob(dobStr) {
@@ -425,33 +426,35 @@ function editStudent(student){
 let editingFee = null;
 
 function editFee(fee){
-  if(!isAdmin()) return;
+  console.log("EDIT FEE CLICKED:", fee);
 
-  editingFee = fee;
+  editingFeeId = fee.id;
 
-  $("edit-fee-amount").value = fee.amount || fee.total_fee || 0;
+  $("edit-fee-amount").value = fee.amount || 0;
   $("edit-fee-receipt").value = fee.receipt_no || "";
+  $("edit-fee-discount").value = fee.discount || 0;
 
   $("edit-fee-modal").classList.remove("hidden");
 }
+
 async function saveEditedFee(){
-  if(!editingFee) return;
-
-  const newAmount = Number($("edit-fee-amount").value || 0);
-  const newReceipt = $("edit-fee-receipt").value.trim();
-
-  if(newAmount <= 0){
-    alert("Invalid fee amount");
+  if(!editingFeeId){
+    alert("Fee not selected");
     return;
   }
+
+  const amount = Number($("edit-fee-amount").value || 0);
+  const receipt = $("edit-fee-receipt").value.trim();
+  const discount = Number($("edit-fee-discount").value || 0);
 
   const { error } = await supa
     .from("fees")
     .update({
-      amount: newAmount,
-      receipt_no: newReceipt
+      amount,
+      receipt_no: receipt,
+      discount
     })
-    .eq("id", editingFee.id);
+    .eq("id", editingFeeId);
 
   if(error){
     alert("Fee update failed");
@@ -459,19 +462,13 @@ async function saveEditedFee(){
     return;
   }
 
-  // local cache update
-  const idx = fees.findIndex(f => f.id === editingFee.id);
-  if(idx !== -1){
-    fees[idx].amount = newAmount;
-    fees[idx].receipt_no = newReceipt;
-  }
-
   $("edit-fee-modal").classList.add("hidden");
-  editingFee = null;
+  editingFeeId = null;
 
+  await loadFees();
   renderStudents();
-  renderDashboard();
 }
+
 async function saveEditedStudent(){
   if(!editingStudent) return;
 
