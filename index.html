@@ -395,19 +395,24 @@
     </div>
   </div>
 </div>
-<div id="edit-fee-modal" class="modal hidden">
-  <div class="modal-content">
-    <h3>Edit Fee</h3>
+<!-- ===== Edit Fee Modal ===== -->
+<div id="edit-fee-modal" class="hidden">
+  <div class="modal-card">
+    <h3>✏️ Edit Fee</h3>
 
-    <input type="number" id="edit-fee-amount">
-    <input type="text" id="edit-fee-receipt">
+    <label>Amount</label>
+    <input id="edit-fee-amount" type="number">
 
-    <div class="modal-actions">
-      <button id="edit-fee-save-btn">Save</button>
-      <button id="edit-fee-cancel-btn">Cancel</button>
+    <label>Receipt No</label>
+    <input id="edit-fee-receipt">
+
+    <div class="row">
+      <button id="edit-fee-save-btn" class="success">Save</button>
+      <button id="edit-fee-cancel-btn" class="secondary">Cancel</button>
     </div>
   </div>
 </div>
+
 
 </body>
 </html>
