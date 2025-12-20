@@ -162,15 +162,32 @@ async function showStudentFeesHistory(studentId){
 
   const card = document.createElement("div");
   card.className = "modal-card";
+const rowsHtml = feeRows.length ? feeRows.map(f=>{
+  const dt = (f.date||"").slice(0,10);
 
-  const rowsHtml = feeRows.length ? feeRows.map(f=>{
-    const dt = (f.date||"").slice(0,10);
-    return `<div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
-              <div><strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>  <small style="color:var(--muted)">(${dt})</small></div>
-              <div style="font-size:0.85rem;color:var(--muted)">Discount: ₹${Number(f.discount||0).toFixed(2)} ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}</div>
-            </div>`;
-  }).join("") : `<div>No fee records found.</div>`;
+  return `
+  <div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
+    
+    <div>
+      <strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>
+      <small style="color:var(--muted)">(${dt})</small>
+    </div>
 
+    <div style="font-size:0.85rem;color:var(--muted)">
+      Discount: ₹${Number(f.discount||0).toFixed(2)}
+      ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}
+    </div>
+
+    ${isAdmin() ? `
+      <button class="btn-small secondary"
+        onclick="openEditFeesModal('${f.id}')">
+        ✏️ Edit
+      </button>` : ""}
+
+  </div>`;
+}).join("") : `<div>No fee records found.</div>`;
+
+  
   card.innerHTML = `
     <h3>Fees — ${escapeHtml(s.name || "")}</h3>
     <div style="margin:6px 0 12px 0; color:var(--muted)">Total fee: ₹${Number(s.total_fee || s.course_fee || 0).toFixed(2)}</div>
@@ -454,6 +471,89 @@ async function openFeesModal(student) {
     console.error("Supabase client not found as window.supabaseClient / window.supa / window.supabase");
     return;
   }
+// ================= FEES EDIT =================
+
+let editingFeeId = null;
+
+async function openEditFeesModal(feeId){
+  if(!isAdmin()) return;
+
+  const fee = fees.find(f => f.id === feeId);
+  if(!fee){
+    alert("Fee record not found");
+    return;
+  }
+
+  editingFeeId = feeId;
+
+  let modal = document.getElementById("modal");
+  modal.classList.remove("hidden");
+
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>✏️ Edit Fees</h3>
+
+      <label>Amount</label>
+      <input id="edit-fee-amount" type="number"
+        value="${fee.amount || fee.total_fee || 0}">
+
+      <label>Discount</label>
+      <input id="edit-fee-discount" type="number"
+        value="${fee.discount || 0}">
+
+      <label>Receipt No</label>
+      <input id="edit-fee-receipt" type="text"
+        value="${fee.receipt_no || ""}">
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button onclick="saveEditedFee()" class="btn-primary">Update</button>
+        <button onclick="closeModal()" class="secondary">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function closeModal(){
+  const modal = document.getElementById("modal");
+  modal.classList.add("hidden");
+  modal.innerHTML = "";
+}
+async function saveEditedFee(){
+  if(!editingFeeId) return;
+
+  const amount = Number(document.getElementById("edit-fee-amount").value || 0);
+  const discount = Number(document.getElementById("edit-fee-discount").value || 0);
+  const receipt = document.getElementById("edit-fee-receipt").value.trim();
+
+  if(amount <= 0){
+    alert("Amount must be greater than 0");
+    return;
+  }
+
+  const { error } = await supa
+    .from("fees")
+    .update({
+      amount: amount,
+      discount: discount,
+      receipt_no: receipt
+    })
+    .eq("id", editingFeeId);
+
+  if(error){
+    console.error(error);
+    alert("Fees update failed");
+    return;
+  }
+
+  alert("Fees updated successfully");
+
+  editingFeeId = null;
+  closeModal();
+
+  await loadFees();
+  renderStudents();
+  renderDashboard();
+}
 
   // modal container (index.html मध्ये #modal असावे)
   let modal = document.getElementById("modal");
