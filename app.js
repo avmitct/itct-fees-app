@@ -406,6 +406,21 @@ function editStudent(student){
 
   $("edit-name").value = student.name || "";
   $("edit-mobile").value = student.mobile || "";
+
+
+  // populate course dropdown
+  const sel = $("edit-course");
+  sel.innerHTML = "";
+  courses.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.textContent = c.name;
+    if(c.name === student.course_name) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  $("edit-student-modal").classList.remove("hidden");
+}
 let editingFee = null;
 
 function editFee(fee){
@@ -455,20 +470,6 @@ async function saveEditedFee(){
 
   renderStudents();
   renderDashboard();
-}
-
-  // populate course dropdown
-  const sel = $("edit-course");
-  sel.innerHTML = "";
-  courses.forEach(c=>{
-    const opt = document.createElement("option");
-    opt.value = c.name;
-    opt.textContent = c.name;
-    if(c.name === student.course_name) opt.selected = true;
-    sel.appendChild(opt);
-  });
-
-  $("edit-student-modal").classList.remove("hidden");
 }
 async function saveEditedStudent(){
   if(!editingStudent) return;
