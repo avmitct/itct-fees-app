@@ -164,12 +164,29 @@ async function showStudentFeesHistory(studentId){
   card.className = "modal-card";
 
   const rowsHtml = feeRows.length ? feeRows.map(f=>{
-    const dt = (f.date||"").slice(0,10);
-    return `<div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
-              <div><strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>  <small style="color:var(--muted)">(${dt})</small></div>
-              <div style="font-size:0.85rem;color:var(--muted)">Discount: ₹${Number(f.discount||0).toFixed(2)} ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}</div>
-            </div>`;
-  }).join("") : `<div>No fee records found.</div>`;
+  const dt = (f.date||"").slice(0,10);
+
+  return `
+    <div style="padding:8px;border-radius:8px;margin-bottom:6px;background:#fff;border:1px solid rgba(120,80,180,0.04)">
+      <div>
+        <strong>₹${Number(f.amount||f.total_fee||0).toFixed(2)}</strong>
+        <small style="color:var(--muted)">(${dt})</small>
+      </div>
+
+      <div style="font-size:0.85rem;color:var(--muted)">
+        Discount: ₹${Number(f.discount||0).toFixed(2)}
+        ${f.receipt_no ? '| Receipt: ' + escapeHtml(f.receipt_no) : ''}
+      </div>
+
+      ${isAdmin() ? `
+        <div style="margin-top:6px">
+          <button class="edit-fee-btn" data-id="${f.id}">✏️ Edit</button>
+        </div>
+      ` : ``}
+    </div>
+  `;
+}).join("") : `<div>No fee records found.</div>`;
+
 
   card.innerHTML = `
     <h3>Fees — ${escapeHtml(s.name || "")}</h3>
@@ -180,6 +197,16 @@ async function showStudentFeesHistory(studentId){
       <button id="modal-close" class="btn-small secondary">Close</button>
     </div>
   `;
+// Admin-only fee edit buttons
+if(isAdmin()){
+  modal.querySelectorAll(".edit-fee-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const feeId = btn.dataset.id;
+      const feeObj = feeRows.find(x => String(x.id) === String(feeId));
+      if(feeObj) editFee(feeObj);
+    });
+  });
+}
 
   modal.appendChild(card);
 
@@ -379,6 +406,56 @@ function editStudent(student){
 
   $("edit-name").value = student.name || "";
   $("edit-mobile").value = student.mobile || "";
+let editingFee = null;
+
+function editFee(fee){
+  if(!isAdmin()) return;
+
+  editingFee = fee;
+
+  $("edit-fee-amount").value = fee.amount || fee.total_fee || 0;
+  $("edit-fee-receipt").value = fee.receipt_no || "";
+
+  $("edit-fee-modal").classList.remove("hidden");
+}
+async function saveEditedFee(){
+  if(!editingFee) return;
+
+  const newAmount = Number($("edit-fee-amount").value || 0);
+  const newReceipt = $("edit-fee-receipt").value.trim();
+
+  if(newAmount <= 0){
+    alert("Invalid fee amount");
+    return;
+  }
+
+  const { error } = await supa
+    .from("fees")
+    .update({
+      amount: newAmount,
+      receipt_no: newReceipt
+    })
+    .eq("id", editingFee.id);
+
+  if(error){
+    alert("Fee update failed");
+    console.error(error);
+    return;
+  }
+
+  // local cache update
+  const idx = fees.findIndex(f => f.id === editingFee.id);
+  if(idx !== -1){
+    fees[idx].amount = newAmount;
+    fees[idx].receipt_no = newReceipt;
+  }
+
+  $("edit-fee-modal").classList.add("hidden");
+  editingFee = null;
+
+  renderStudents();
+  renderDashboard();
+}
 
   // populate course dropdown
   const sel = $("edit-course");
@@ -960,6 +1037,17 @@ if($("edit-cancel-btn")){
 
 if($("edit-save-btn")){
   $("edit-save-btn").addEventListener("click", saveEditedStudent);
+}
+// ===== Edit Fee Modal Buttons =====
+if($("edit-fee-cancel-btn")){
+  $("edit-fee-cancel-btn").addEventListener("click", ()=>{
+    $("edit-fee-modal").classList.add("hidden");
+    editingFee = null;
+  });
+}
+
+if($("edit-fee-save-btn")){
+  $("edit-fee-save-btn").addEventListener("click", saveEditedFee);
 }
 
 // Student list search (LIVE FILTER)
