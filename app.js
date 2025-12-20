@@ -370,59 +370,74 @@ const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
 async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
-async function editStudent(student){
+let editingStudent = null;
+
+function editStudent(student){
   if(!isAdmin()) return;
 
-  // 1️⃣ Name
-  const newName = prompt("Edit name:", student.name);
-  if(newName === null) return;
+  editingStudent = student;
 
-  // 2️⃣ Mobile
-  const newMobile = prompt("Edit mobile:", student.mobile || "");
-  if(newMobile === null) return;
+  $("edit-name").value = student.name || "";
+  $("edit-mobile").value = student.mobile || "";
 
-  // 3️⃣ Course selection (text-based)
-  const courseNames = courses.map(c => c.name).join("\n");
-  const newCourse = prompt(
-    "Edit course (type exact name from list below):\n\n" + courseNames,
-    student.course_name || ""
-  );
-  if(newCourse === null) return;
+  // populate course dropdown
+  const sel = $("edit-course");
+  sel.innerHTML = "";
+  courses.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c.name;
+    opt.textContent = c.name;
+    if(c.name === student.course_name) opt.selected = true;
+    sel.appendChild(opt);
+  });
 
-  // find course fee
-  const courseObj = courses.find(c => c.name === newCourse);
-  if(!courseObj){
-    alert("Invalid course name. Please type exactly as shown.");
+  $("edit-student-modal").classList.remove("hidden");
+}
+async function saveEditedStudent(){
+  if(!editingStudent) return;
+
+  const newName = $("edit-name").value.trim();
+  const newMobile = $("edit-mobile").value.trim();
+  const newCourse = $("edit-course").value;
+
+  if(!newName){
+    alert("Name required");
     return;
   }
 
-  // 4️⃣ Update in Supabase
+  const courseObj = courses.find(c => c.name === newCourse);
+  if(!courseObj){
+    alert("Invalid course");
+    return;
+  }
+
   const { error } = await supa
     .from("students")
     .update({
-      name: newName.trim(),
-      mobile: newMobile.trim(),
+      name: newName,
+      mobile: newMobile,
       course_name: courseObj.name,
       total_fee: Number(courseObj.fee || 0)
     })
-    .eq("id", student.id);
+    .eq("id", editingStudent.id);
 
   if(error){
-    alert("Student update करताना त्रुटी");
+    alert("Update failed");
     console.error(error);
     return;
   }
 
-  // 5️⃣ Update local array (UI refresh without reload)
-  const idx = students.findIndex(s => s.id === student.id);
+  // update local cache
+  const idx = students.findIndex(s => s.id === editingStudent.id);
   if(idx !== -1){
-    students[idx].name = newName.trim();
-    students[idx].mobile = newMobile.trim();
+    students[idx].name = newName;
+    students[idx].mobile = newMobile;
     students[idx].course_name = courseObj.name;
     students[idx].total_fee = Number(courseObj.fee || 0);
   }
 
-  alert("Student updated successfully");
+  $("edit-student-modal").classList.add("hidden");
+  editingStudent = null;
 
   renderStudents();
   renderDashboard();
@@ -935,6 +950,18 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+    // ===== Edit Student Modal Buttons =====
+if($("edit-cancel-btn")){
+  $("edit-cancel-btn").addEventListener("click", ()=>{
+    $("edit-student-modal").classList.add("hidden");
+    editingStudent = null;
+  });
+}
+
+if($("edit-save-btn")){
+  $("edit-save-btn").addEventListener("click", saveEditedStudent);
+}
+
 // Student list search (LIVE FILTER)
 // Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
