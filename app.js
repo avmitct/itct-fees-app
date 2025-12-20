@@ -400,6 +400,7 @@ async function deleteStudent(id){ if(!confirm("हा विद्यार्�
 let editingStudent = null;
 
 function editStudent(student){
+  console.log("EDIT CLICKED:", student);
   if(!isAdmin()) return;
 
   editingStudent = student;
