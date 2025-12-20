@@ -249,6 +249,7 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
       <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
         <button class="pay-btn">${"फीस भरा"}</button>
         <button class="view-btn">पहा</button>
+        <button class="edit-btn admin-only">✏️ Edit</button>
         <button class="delete-btn admin-only">हटवा</button>
       </div>
     `;
@@ -264,7 +265,15 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
     if(delBtn){
       if(isAdmin()) delBtn.classList.remove("hidden"); else delBtn.classList.add("hidden");
       delBtn.addEventListener("click", ()=> deleteStudent(s.id));
+      
     }
+const editBtn = li.querySelector(".edit-btn");
+if (editBtn) {
+  if (isAdmin()) editBtn.classList.remove("hidden");
+  else editBtn.classList.add("hidden");
+
+  editBtn.addEventListener("click", () => editStudent(s));
+}
 
     ul.appendChild(li);
   }
@@ -361,6 +370,32 @@ const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
 async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
+async function editStudent(student){
+  if(!isAdmin()) return;
+
+  const newName = prompt("Edit name:", student.name);
+  if(newName === null) return;
+
+  const newMobile = prompt("Edit mobile:", student.mobile || "");
+  if(newMobile === null) return;
+
+  const { error } = await supa
+    .from("students")
+    .update({
+      name: newName.trim(),
+      mobile: newMobile.trim()
+    })
+    .eq("id", student.id);
+
+  if(error){
+    alert("Error updating student");
+    console.error(error);
+    return;
+  }
+
+  alert("Student updated successfully");
+  await refreshStudents(); // re-load list
+}
 
 // placeholders
 // Replace your existing openFeesModal function with this one.
