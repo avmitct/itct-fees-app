@@ -788,6 +788,17 @@ function escapeHtml(str) {
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
   });
 }
+function arrayToCSV(rows){
+  if(!rows || !rows.length) return "";
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(","),
+    ...rows.map(r =>
+      headers.map(h => `"${String(r[h] ?? "").replace(/"/g,'""')}"`).join(",")
+    )
+  ];
+  return csv.join("\n");
+}
 
 function viewStudentDetails(student){ alert(`Student: ${student.name}\nCourse: ${student.course_name||""}\nMobile: ${student.mobile}`); }
 
@@ -1063,6 +1074,48 @@ function downloadCSVFile(filename, rows){ const blob = new Blob([rows.join("\n")
 function backupStudents(){ const rows=["ID,Name,Course,Mobile,Mobile2"]; students.forEach(s=> rows.push(`${s.id},"${s.name}","${s.course_name||""}","${s.mobile||""}","${s.mobile2||""}"`)); downloadCSVFile("students.csv", rows); }
 function backupFees(){ const rows=["ID,StudentID,Amount,Discount,Date"]; fees.forEach(f=> rows.push(`${f.id},${f.student_id},${f.amount||f.total_fee||0},${f.discount||0},"${(f.date||"").slice(0,10)}"`)); downloadCSVFile("fees.csv", rows); }
 function backupCourses(){ const rows=["ID,Name,Fee"]; courses.forEach(c=> rows.push(`${c.id},"${c.name}",${c.fee||0}`)); downloadCSVFile("courses.csv", rows); }
+async function backupAllZIP(){
+  if(!isAdmin()){
+    alert("Admin access required");
+    return;
+  }
+
+  try{
+    alert("Backup started. Please wait...");
+
+    // ensure latest data
+    await refreshAllData();
+
+    const zip = new JSZip();
+    const folder = zip.folder("ITCT-Database-Backup");
+
+    folder.file("students.csv", arrayToCSV(students));
+    folder.file("fees.csv", arrayToCSV(fees));
+    folder.file("courses.csv", arrayToCSV(courses));
+    folder.file("users.csv", arrayToCSV(users));
+    folder.file("enquiries.csv", arrayToCSV(enquiries));
+
+    const content = await zip.generateAsync({ type: "blob" });
+
+    const today = new Date().toISOString().slice(0,10);
+    const filename = `ITCT-Backup-${today}.zip`;
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(content);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+
+    alert("Backup completed successfully ✅");
+
+  }catch(err){
+    console.error("Backup error:", err);
+    alert("Backup failed. Check console.");
+  }
+}
+
 
 // ============== Users & Settings =================
 async function changeAdminPassword(){
@@ -1162,6 +1215,10 @@ document.addEventListener('DOMContentLoaded', async ()=> {
     if($("reports-btn")) $("reports-btn").addEventListener("click", ()=> showSection("reports-section"));
     if($("settings-btn")) $("settings-btn").addEventListener("click", ()=> showSection("settings-section"));
     if($("backup-btn")) $("backup-btn").addEventListener("click", ()=> showSection("backup-section"));
+    if($("backup-all-zip")){
+  $("backup-all-zip").addEventListener("click", backupAllZIP);
+}
+
     // ===== Edit Student Modal Buttons =====
 if($("edit-cancel-btn")){
   $("edit-cancel-btn").addEventListener("click", ()=>{
