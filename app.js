@@ -11,6 +11,11 @@ let fees = [];
 let users = [];
 let lastReportRows = [];
 let renderStudentsToken = 0;
+document.addEventListener("DOMContentLoaded", () => {
+  if($("app-section")) $("app-section").classList.add("hidden");
+  if($("login-section")) $("login-section").classList.remove("hidden");
+});
+
 
 // ============== Utilities =================
 function calcAgeFromDob(dobStr) {
@@ -1209,7 +1214,7 @@ if (searchInput) {
     // Settings
     if($("change-pass-btn")) $("change-pass-btn").addEventListener("click", changeAdminPassword);
     if($("add-user-btn")) $("add-user-btn").addEventListener("click", addUser);
-
+/*  Auto Login Disabled
     // Try auto-login from localStorage
     const cached = localStorage.getItem("itct_current_user");
     if(cached){ 
@@ -1222,7 +1227,7 @@ if (searchInput) {
         applyRoleUI(); await refreshAllData(); showSection("dashboard-section"); 
       }catch(e){ console.error(e); localStorage.removeItem("itct_current_user"); } 
     }
-
+*/
     // init WhatsApp settings UI
     initWaSettingsUI();
 
