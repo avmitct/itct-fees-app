@@ -363,11 +363,7 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
     li.className = "student-item";
 
     li.innerHTML = `
-    // 🔔 WhatsApp Fees Reminder button
-const waBtn = li.querySelector(".wa-btn");
-if (waBtn) {
-  waBtn.addEventListener("click", () => sendFeesReminderWhatsApp(s));
-}
+    
 
       <div class="info">
         <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
@@ -387,7 +383,11 @@ if (waBtn) {
         <button class="delete-btn admin-only">हटवा</button>
       </div>
     `;
-
+// 🔔 WhatsApp Fees Reminder button
+const waBtn = li.querySelector(".wa-btn");
+if (waBtn) {
+  waBtn.addEventListener("click", () => sendFeesReminderWhatsApp(s));
+}
     // hook actions
     const payBtn = li.querySelector(".pay-btn");
     if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
