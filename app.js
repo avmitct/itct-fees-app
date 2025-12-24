@@ -238,7 +238,6 @@ async function showStudentFeesHistory(studentId){
   }
 }
 
-let editingFeeId = null;
 
 async function openEditFeesModal(feeId){
   if(!isAdmin()) return;
