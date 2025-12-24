@@ -10,9 +10,7 @@ let enquiries = [];
 let fees = [];
 let users = [];
 let lastReportRows = [];
-let sToken = 0;
 let renderStudentsToken = 0;
-
 document.addEventListener("DOMContentLoaded", () => {
   if($("app-section")) $("app-section").classList.add("hidden");
   if($("login-section")) $("login-section").classList.remove("hidden");
@@ -238,6 +236,7 @@ async function showStudentFeesHistory(studentId){
   }
 }
 
+let editingFeeId = null;
 
 async function openEditFeesModal(feeId){
   if(!isAdmin()) return;
@@ -364,8 +363,6 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
     li.className = "student-item";
 
     li.innerHTML = `
-    
-
       <div class="info">
         <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
         <div class="s-meta">
@@ -379,16 +376,11 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
       <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
         <button class="pay-btn">${"फीस भरा"}</button>
         <button class="view-btn">पहा</button>
-         <button class="wa-btn">📲 Reminder</button>
         <button class="edit-btn admin-only">✏️ Edit</button>
         <button class="delete-btn admin-only">हटवा</button>
       </div>
     `;
-// 🔔 WhatsApp Fees Reminder button
-const waBtn = li.querySelector(".wa-btn");
-if (waBtn) {
-  waBtn.addEventListener("click", () => sendFeesReminderWhatsApp(s));
-}
+
     // hook actions
     const payBtn = li.querySelector(".pay-btn");
     if(payBtn) payBtn.addEventListener("click", ()=> openFeesModal(s)); // use your existing modal
@@ -581,29 +573,6 @@ async function saveEditedStudent(){
 
 // placeholders
 // Replace your existing openFeesModal function with this one.
-let editingFeeId = null;
-
-window.openEditFeesModal = async function (feeId){
-  if(!isAdmin()) return;
-  const fee = fees.find(f => f.id === feeId);
-  if(!fee){ alert("Fee record not found"); return; }
-  editingFeeId = feeId;
-  ...
-};
-
-window.saveEditedFee = async function (){
-  if(!editingFeeId) return;
-  ...
-};
-
-window.closeModal = function (){
-  const modal = document.getElementById("modal");
-  if(modal){
-    modal.classList.add("hidden");
-    modal.innerHTML = "";
-  }
-};
-
 async function openFeesModal(student) {
   // get supabase client (support different var names)
   const supaClient = window.supabaseClient || window.supa || (window.supabase && window.supabase.createClient && window.supabase) || null;
@@ -614,6 +583,17 @@ async function openFeesModal(student) {
   }
 // ================= FEES EDIT =================
 
+let editingFeeId = null;
+window.openEditFeesModal = async function (feeId){
+  if(!isAdmin()) return;
+
+  const fee = fees.find(f => f.id === feeId);
+  if(!fee){
+    alert("Fee record not found");
+    return;
+  }
+
+  editingFeeId = feeId;
 
   let modal = document.getElementById("modal");
   modal.classList.remove("hidden");
@@ -642,7 +622,17 @@ async function openFeesModal(student) {
   `;
 };
 
+window.saveEditedFee = async function (){
+  if(!editingFeeId) return;
 
+  const amount = Number(document.getElementById("edit-fee-amount").value || 0);
+  const discount = Number(document.getElementById("edit-fee-discount").value || 0);
+  const receipt = document.getElementById("edit-fee-receipt").value.trim();
+
+  if(amount <= 0){
+    alert("Amount must be greater than 0");
+    return;
+  }
 
   const { error } = await supa
     .from("fees")
@@ -669,7 +659,11 @@ async function openFeesModal(student) {
   renderDashboard();
 };
 
-
+window.closeModal = function (){
+  const modal = document.getElementById("modal");
+  modal.classList.add("hidden");
+  modal.innerHTML = "";
+};
 
 
 
@@ -1157,59 +1151,21 @@ const DEFAULT_WA_SETTINGS = {
   initialDays: 0,
   followupDays: 3
 };
-// 🔔 Fees Reminder WhatsApp Template (NEW)
-DEFAULT_WA_SETTINGS.feesReminderTemplate =
-`नमस्कार {NAME},
-आपल्या {COURSE} कोर्सची फी बाकी आहे.
-
-💰 बाकी फी: ₹{BALANCE}
-
-कृपया लवकरात लवकर फी भरण्यासाठी संपर्क करा.
-– {INSTITUTE}`;
 
 function loadWaSettings(){ try{ const raw=localStorage.getItem(WA_SETTINGS_KEY); if(!raw) return {...DEFAULT_WA_SETTINGS}; const parsed=JSON.parse(raw); return {...DEFAULT_WA_SETTINGS, ...parsed}; }catch{ return {...DEFAULT_WA_SETTINGS}; } }
 function saveWaSettingsToStorage(settings){ localStorage.setItem(WA_SETTINGS_KEY, JSON.stringify(settings)); }
 
 function initWaSettingsUI(){
   const s = loadWaSettings();
-
-  const inst = $('wa-inst-name');
-  const t1 = $('wa-tpl-initial');
-  const t2 = $('wa-tpl-followup');
-  const t3 = $('wa-tpl-fees');
-  const d1 = $('wa-initial-days');
-  const d2 = $('wa-followup-days');
-  const btn = $('wa-save-settings');
-
-  if(inst) inst.value = s.instituteName;
-  if(t1) t1.value = s.initialTemplate;
-  if(t2) t2.value = s.followupTemplate;
-  if(t3) t3.value = s.feesReminderTemplate || DEFAULT_WA_SETTINGS.feesReminderTemplate;
-  if(d1) d1.value = s.initialDays;
-  if(d2) d2.value = s.followupDays;
-
-  if(btn){
-    btn.addEventListener('click', ()=>{
-      const updated = {
-        instituteName: inst ? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName,
-        initialTemplate: t1 ? t1.value.trim() || DEFAULT_WA_SETTINGS.initialTemplate : DEFAULT_WA_SETTINGS.initialTemplate,
-        followupTemplate: t2 ? t2.value.trim() || DEFAULT_WA_SETTINGS.followupTemplate : DEFAULT_WA_SETTINGS.followupTemplate,
-        feesReminderTemplate: t3 ? t3.value.trim() || DEFAULT_WA_SETTINGS.feesReminderTemplate : DEFAULT_WA_SETTINGS.feesReminderTemplate,
-        initialDays: d1 ? Number(d1.value || 0) : 0,
-        followupDays: d2 ? Number(d2.value || 3) : 3
-      };
-      saveWaSettingsToStorage(updated);
-      alert('WhatsApp settings जतन झाले.');
-    });
-  }
+  const inst = $('wa-inst-name'); const t1 = $('wa-tpl-initial'); const t2 = $('wa-tpl-followup'); const d1 = $('wa-initial-days'); const d2 = $('wa-followup-days'); const btn = $('wa-save-settings');
+  if(inst) inst.value = s.instituteName; if(t1) t1.value = s.initialTemplate; if(t2) t2.value = s.followupTemplate; if(d1) d1.value = s.initialDays; if(d2) d2.value = s.followupDays;
+  if(btn) btn.addEventListener('click', ()=>{ const updated = { instituteName: inst? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName, initialTemplate: t1? (t1.value.trim()||DEFAULT_WA_SETTINGS.initialTemplate) : DEFAULT_WA_SETTINGS.initialTemplate, followupTemplate: t2? (t2.value.trim()||DEFAULT_WA_SETTINGS.followupTemplate) : DEFAULT_WA_SETTINGS.followupTemplate, initialDays: d1? Number(d1.value||0) : 0, followupDays: d2? Number(d2.value||3) : 3 }; saveWaSettingsToStorage(updated); alert('WhatsApp settings जतन झाले.'); });
 }
 
 function fillTemplate(tpl, enquiry, settings){
   const mobile = enquiry.mobile || enquiry.mobile2 || '';
   return tpl.replace(/\{NAME\}/gi, enquiry.name || '')
             .replace(/\{COURSE\}/gi, enquiry.course_name || enquiry.course || '')
-    .replace(/\{BALANCE\}/gi, (enquiry.balance ?? '').toString())
-
             .replace(/\{AGE\}/gi, (enquiry.age || '').toString())
             .replace(/\{MOBILE\}/gi, mobile)
             .replace(/\{INSTITUTE\}/gi, settings.instituteName || DEFAULT_WA_SETTINGS.instituteName);
@@ -1222,48 +1178,9 @@ function normalizeMobile(m){
   if(s.length === 10) return s;
   return s;
 }
- window.sendFeesReminderWhatsApp = async function(student){
-  if(!student) return;
 
-  const settings = loadWaSettings();
-
-  // calculate balance (same logic as renderStudents)
-  const feeRows = await getFeesForStudent(student.id);
-  const paid = feeRows.reduce((a,r)=> a + Number(r.amount||r.total_fee||0), 0);
-  const discount = feeRows.reduce((a,r)=> a + Number(r.discount||0), 0);
-  const total = Number(student.total_fee || 0);
-  const balance = Math.max(0, total - paid - discount);
-
-  if(balance <= 0){
-    alert("या विद्यार्थ्याची फी बाकी नाही.");
-    return;
-  }
-
-  const msgData = {
-    name: student.name,
-    course_name: student.course_name,
-    balance: balance
-  };
-
-  const msg = fillTemplate(
-    settings.feesReminderTemplate,
-    msgData,
-    settings
-  );
-
-  const mobile = normalizeMobile(student.mobile || student.mobile2);
-  if(!mobile){
-    alert("मोबाईल नंबर उपलब्ध नाही.");
-    return;
-  }
-
-  const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(msg)}`;
-  window.open(url, "_blank");
-};
 window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
   const e = enquiries.find(x=> x.id === id); if(!e){ alert("Enquiry सापडली नाही"); return; }
- 
-
   const settings = loadWaSettings();
   const created = e.created_at ? new Date(e.created_at) : new Date();
   const today = new Date(); const diffDays = Math.floor((today - created) / (1000*60*60*24));
@@ -1318,8 +1235,7 @@ if($("edit-save-btn")){
 // Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
 if (searchInput) {
-  searchInput.oninput = () => renderStudents();
- // overwrite, no stacking
+  searchInput.oninput = () => renderStudents(); // overwrite, no stacking
 }
 
     // Student
@@ -1513,6 +1429,24 @@ function populateCourseDropdowns(){
 }
 
 
+
+// ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
+async function editCourse(id){
+  try{
+    const course = courses.find(c => String(c.id) === String(id));
+    if(!course){
+      alert("Course not found");
+      return;
+    }
+
+    // Ask name
+    const newName = prompt("Edit course name:", course.name);
+    if(newName === null) return;
+    const nameTrim = newName.trim();
+    if(!nameTrim){
+      alert("Course name cannot be empty");
+      return;
+    }
 
     // Ask fee
     const feeDefault = (course.fee !== null && course.fee !== undefined) ? course.fee : 0;
