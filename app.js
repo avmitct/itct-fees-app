@@ -789,23 +789,7 @@ const payload = {
     if (el) el.focus();
   }, 100);
 } // <-- end of openFeesModal function
-const DEFAULT_WA_TEMPLATE =
-`नमस्कार {name},
 
-आपल्या {course} कोर्सची फी अजून बाकी आहे.
-
-📌 बाकी रक्कम: ₹{balance}
-📅 अंतिम तारीख: {due_date}
-
-कृपया वेळेत फी भरावी.
-– {institute}`;
-function loadWATemplate(){
-  return localStorage.getItem("itct_wa_template") || DEFAULT_WA_TEMPLATE;
-}
-
-function saveWATemplate(text){
-  localStorage.setItem("itct_wa_template", text);
-}
 function initWaSettingsUI(){
   const ta = $("wa-template-text");
   if(!ta) return;
@@ -844,6 +828,54 @@ function escapeHtml(str) {
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
   });
 }
+const DEFAULT_WA_TEMPLATE =
+`नमस्कार {name},
+
+आपल्या {course} कोर्सची फी अजून बाकी आहे.
+
+📌 बाकी रक्कम: ₹{balance}
+📅 अंतिम तारीख: {due_date}
+
+कृपया वेळेत फी भरावी.
+– {institute}`;
+function loadWATemplate(){
+  return localStorage.getItem("itct_wa_template") || DEFAULT_WA_TEMPLATE;
+}
+
+function saveWATemplate(text){
+  localStorage.setItem("itct_wa_template", text);
+}
+function initWaSettingsUI(){
+  const ta = document.getElementById("wa-template-text");
+  if(!ta) return;
+
+  // 👉 THIS LINE IS THE KEY
+  ta.value = loadWATemplate();
+
+  const saveBtn = document.getElementById("save-wa-template");
+  if(saveBtn){
+    saveBtn.addEventListener("click", ()=>{
+      const txt = ta.value.trim();
+      if(!txt){
+        alert("Template cannot be empty");
+        return;
+      }
+      saveWATemplate(txt);
+      alert("WhatsApp template saved ✅");
+    });
+  }
+
+  const resetBtn = document.getElementById("reset-wa-template");
+  if(resetBtn){
+    resetBtn.addEventListener("click", ()=>{
+      if(confirm("Reset to default template?")){
+        ta.value = DEFAULT_WA_TEMPLATE;
+        saveWATemplate(DEFAULT_WA_TEMPLATE);
+      }
+    });
+  }
+}
+
 function sendFeesReminderWhatsApp(student, balance){
   if(!student || balance <= 0){
     alert("No due fees");
