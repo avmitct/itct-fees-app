@@ -376,6 +376,7 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
       <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
         <button class="pay-btn">${"फीस भरा"}</button>
         <button class="view-btn">पहा</button>
+        <button class="reminder-btn success">📲 Reminder</button>
         <button class="edit-btn admin-only">✏️ Edit</button>
         <button class="delete-btn admin-only">हटवा</button>
       </div>
@@ -387,6 +388,14 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
 
     const viewBtn = li.querySelector(".view-btn");
     if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
+    // 📲 WhatsApp Fees Reminder
+const reminderBtn = li.querySelector(".reminder-btn");
+if(reminderBtn){
+  reminderBtn.addEventListener("click", ()=>{
+    sendFeesReminderWhatsApp(s, balance);
+  });
+}
+
 
     const delBtn = li.querySelector(".delete-btn");
     if(delBtn){
@@ -780,6 +789,53 @@ const payload = {
     if (el) el.focus();
   }, 100);
 } // <-- end of openFeesModal function
+const DEFAULT_WA_TEMPLATE =
+`नमस्कार {name},
+
+आपल्या {course} कोर्सची फी अजून बाकी आहे.
+
+📌 बाकी रक्कम: ₹{balance}
+📅 अंतिम तारीख: {due_date}
+
+कृपया वेळेत फी भरावी.
+– {institute}`;
+function loadWATemplate(){
+  return localStorage.getItem("itct_wa_template") || DEFAULT_WA_TEMPLATE;
+}
+
+function saveWATemplate(text){
+  localStorage.setItem("itct_wa_template", text);
+}
+function initWaSettingsUI(){
+  const ta = $("wa-template-text");
+  if(!ta) return;
+
+  // load saved template
+  ta.value = loadWATemplate();
+
+  const saveBtn = $("save-wa-template");
+  if(saveBtn){
+    saveBtn.addEventListener("click", ()=>{
+      const txt = ta.value.trim();
+      if(!txt){
+        alert("Template cannot be empty");
+        return;
+      }
+      saveWATemplate(txt);
+      alert("WhatsApp template saved ✅");
+    });
+  }
+
+  const resetBtn = $("reset-wa-template");
+  if(resetBtn){
+    resetBtn.addEventListener("click", ()=>{
+      if(confirm("Reset to default template?")){
+        ta.value = DEFAULT_WA_TEMPLATE;
+        saveWATemplate(DEFAULT_WA_TEMPLATE);
+      }
+    });
+  }
+}
 
 // small helper to escape HTML (prevent XSS when injecting name)
 function escapeHtml(str) {
@@ -788,6 +844,32 @@ function escapeHtml(str) {
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
   });
 }
+function sendFeesReminderWhatsApp(student, balance){
+  if(!student || balance <= 0){
+    alert("No due fees");
+    return;
+  }
+
+  const mobile = (student.mobile || student.mobile2 || "").replace(/\D/g,"");
+  if(mobile.length !== 10){
+    alert("Valid mobile number not found");
+    return;
+  }
+
+  const template = loadWATemplate();
+
+  const message = template
+    .replaceAll("{name}", student.name || "")
+    .replaceAll("{course}", student.course_name || "")
+    .replaceAll("{balance}", balance)
+    .replaceAll("{due_date}", student.due_date || "लवकरात लवकर")
+    .replaceAll("{institute}", "ITCT Computer Education, Nandurbar");
+
+  const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
+  window.open(url, "_blank");
+}
+
+
 function arrayToCSV(rows){
   if(!rows || !rows.length) return "";
   const headers = Object.keys(rows[0]);
