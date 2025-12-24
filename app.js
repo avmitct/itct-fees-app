@@ -11,6 +11,8 @@ let fees = [];
 let users = [];
 let lastReportRows = [];
 let sToken = 0;
+let renderStudentsToken = 0;
+
 document.addEventListener("DOMContentLoaded", () => {
   if($("app-section")) $("app-section").classList.add("hidden");
   if($("login-section")) $("login-section").classList.remove("hidden");
@@ -580,6 +582,29 @@ async function saveEditedStudent(){
 
 // placeholders
 // Replace your existing openFeesModal function with this one.
+let editingFeeId = null;
+
+window.openEditFeesModal = async function (feeId){
+  if(!isAdmin()) return;
+  const fee = fees.find(f => f.id === feeId);
+  if(!fee){ alert("Fee record not found"); return; }
+  editingFeeId = feeId;
+  ...
+};
+
+window.saveEditedFee = async function (){
+  if(!editingFeeId) return;
+  ...
+};
+
+window.closeModal = function (){
+  const modal = document.getElementById("modal");
+  if(modal){
+    modal.classList.add("hidden");
+    modal.innerHTML = "";
+  }
+};
+
 async function openFeesModal(student) {
   // get supabase client (support different var names)
   const supaClient = window.supabaseClient || window.supa || (window.supabase && window.supabase.createClient && window.supabase) || null;
@@ -590,17 +615,6 @@ async function openFeesModal(student) {
   }
 // ================= FEES EDIT =================
 
-let editingFeeId = null;
-window.openEditFeesModal = async function (feeId){
-  if(!isAdmin()) return;
-
-  const fee = fees.find(f => f.id === feeId);
-  if(!fee){
-    alert("Fee record not found");
-    return;
-  }
-
-  editingFeeId = feeId;
 
   let modal = document.getElementById("modal");
   modal.classList.remove("hidden");
@@ -629,17 +643,7 @@ window.openEditFeesModal = async function (feeId){
   `;
 };
 
-window.saveEditedFee = async function (){
-  if(!editingFeeId) return;
 
-  const amount = Number(document.getElementById("edit-fee-amount").value || 0);
-  const discount = Number(document.getElementById("edit-fee-discount").value || 0);
-  const receipt = document.getElementById("edit-fee-receipt").value.trim();
-
-  if(amount <= 0){
-    alert("Amount must be greater than 0");
-    return;
-  }
 
   const { error } = await supa
     .from("fees")
@@ -666,11 +670,7 @@ window.saveEditedFee = async function (){
   renderDashboard();
 };
 
-window.closeModal = function (){
-  const modal = document.getElementById("modal");
-  modal.classList.add("hidden");
-  modal.innerHTML = "";
-};
+
 
 
 
@@ -1319,7 +1319,8 @@ if($("edit-save-btn")){
 // Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
 if (searchInput) {
-  searchInput.oninput = () => s(); // overwrite, no stacking
+  searchInput.oninput = () => renderStudents();
+ // overwrite, no stacking
 }
 
     // Student
@@ -1513,18 +1514,6 @@ function populateCourseDropdowns(){
 }
 
 
-
-// ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
-
-
-    // Ask name
-    const newName = prompt("Edit course name:", course.name);
-    if(newName === null) return;
-    const nameTrim = newName.trim();
-    if(!nameTrim){
-      alert("Course name cannot be empty");
-      return;
-    }
 
     // Ask fee
     const feeDefault = (course.fee !== null && course.fee !== undefined) ? course.fee : 0;
