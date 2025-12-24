@@ -10,7 +10,7 @@ let enquiries = [];
 let fees = [];
 let users = [];
 let lastReportRows = [];
-let renderStudentsToken = 0;
+let sToken = 0;
 document.addEventListener("DOMContentLoaded", () => {
   if($("app-section")) $("app-section").classList.add("hidden");
   if($("login-section")) $("login-section").classList.remove("hidden");
@@ -363,6 +363,12 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
     li.className = "student-item";
 
     li.innerHTML = `
+    // 🔔 WhatsApp Fees Reminder button
+const waBtn = li.querySelector(".wa-btn");
+if (waBtn) {
+  waBtn.addEventListener("click", () => sendFeesReminderWhatsApp(s));
+}
+
       <div class="info">
         <strong class="s-name">${escapeHtml(s.name || "-")}</strong>
         <div class="s-meta">
@@ -376,6 +382,7 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
       <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
         <button class="pay-btn">${"फीस भरा"}</button>
         <button class="view-btn">पहा</button>
+         <button class="wa-btn">📲 Reminder</button>
         <button class="edit-btn admin-only">✏️ Edit</button>
         <button class="delete-btn admin-only">हटवा</button>
       </div>
@@ -1178,6 +1185,8 @@ function fillTemplate(tpl, enquiry, settings){
   const mobile = enquiry.mobile || enquiry.mobile2 || '';
   return tpl.replace(/\{NAME\}/gi, enquiry.name || '')
             .replace(/\{COURSE\}/gi, enquiry.course_name || enquiry.course || '')
+    .replace(/\{BALANCE\}/gi, (enquiry.balance ?? '').toString())
+
             .replace(/\{AGE\}/gi, (enquiry.age || '').toString())
             .replace(/\{MOBILE\}/gi, mobile)
             .replace(/\{INSTITUTE\}/gi, settings.instituteName || DEFAULT_WA_SETTINGS.instituteName);
@@ -1193,6 +1202,45 @@ function normalizeMobile(m){
 
 window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
   const e = enquiries.find(x=> x.id === id); if(!e){ alert("Enquiry सापडली नाही"); return; }
+  window.sendFeesReminderWhatsApp = async function(student){
+  if(!student) return;
+
+  const settings = loadWaSettings();
+
+  // calculate balance (same logic as renderStudents)
+  const feeRows = await getFeesForStudent(student.id);
+  const paid = feeRows.reduce((a,r)=> a + Number(r.amount||r.total_fee||0), 0);
+  const discount = feeRows.reduce((a,r)=> a + Number(r.discount||0), 0);
+  const total = Number(student.total_fee || 0);
+  const balance = Math.max(0, total - paid - discount);
+
+  if(balance <= 0){
+    alert("या विद्यार्थ्याची फी बाकी नाही.");
+    return;
+  }
+
+  const msgData = {
+    name: student.name,
+    course_name: student.course_name,
+    balance: balance
+  };
+
+  const msg = fillTemplate(
+    settings.feesReminderTemplate,
+    msgData,
+    settings
+  );
+
+  const mobile = normalizeMobile(student.mobile || student.mobile2);
+  if(!mobile){
+    alert("मोबाईल नंबर उपलब्ध नाही.");
+    return;
+  }
+
+  const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(msg)}`;
+  window.open(url, "_blank");
+};
+
   const settings = loadWaSettings();
   const created = e.created_at ? new Date(e.created_at) : new Date();
   const today = new Date(); const diffDays = Math.floor((today - created) / (1000*60*60*24));
@@ -1247,7 +1295,7 @@ if($("edit-save-btn")){
 // Student list search (LIVE FILTER – SAFE)
 const searchInput = $("search");
 if (searchInput) {
-  searchInput.oninput = () => renderStudents(); // overwrite, no stacking
+  searchInput.oninput = () => s(); // overwrite, no stacking
 }
 
     // Student
