@@ -1173,12 +1173,36 @@ function saveWaSettingsToStorage(settings){ localStorage.setItem(WA_SETTINGS_KEY
 
 function initWaSettingsUI(){
   const s = loadWaSettings();
-  const inst = $('wa-inst-name'); const t1 = $('wa-tpl-initial'); const t2 = $('wa-tpl-followup'); const t3 = $('wa-tpl-fees');
-if (t3) t3.value = s.feesReminderTemplate || DEFAULT_WA_SETTINGS.feesReminderTemplate;
- const d1 = $('wa-initial-days'); const d2 = $('wa-followup-days'); const btn = $('wa-save-settings');
-  if(inst) inst.value = s.instituteName; if(t1) t1.value = s.initialTemplate; if(t2) t2.value = s.followupTemplate; if(d1) d1.value = s.initialDays; if(d2) d2.value = s.followupDays;
-  if(btn) btn.addEventListener('click', ()=>{ const updated = { instituteName: inst? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName, initialTemplate: t1? (t1.value.trim()||DEFAULT_WA_SETTINGS.initialTemplate) : DEFAULT_WA_SETTINGS.initialTemplate, followupTemplate: t2? (t2.value.trim()||DEFAULT_WA_SETTINGS.followupTemplate) : DEFAULT_WA_SETTINGS.followupTemplate, initialDays: d1? Number(d1.value||0) : 0, followupDays: d2? Number(d2.value||3) : 3 }; saveWaSettingsToStorage(updated); alert('WhatsApp settings जतन झाले.'); });feesReminderTemplate: t3 ? (t3.value.trim() || DEFAULT_WA_SETTINGS.feesReminderTemplate) : DEFAULT_WA_SETTINGS.feesReminderTemplate,
 
+  const inst = $('wa-inst-name');
+  const t1 = $('wa-tpl-initial');
+  const t2 = $('wa-tpl-followup');
+  const t3 = $('wa-tpl-fees');
+  const d1 = $('wa-initial-days');
+  const d2 = $('wa-followup-days');
+  const btn = $('wa-save-settings');
+
+  if(inst) inst.value = s.instituteName;
+  if(t1) t1.value = s.initialTemplate;
+  if(t2) t2.value = s.followupTemplate;
+  if(t3) t3.value = s.feesReminderTemplate || DEFAULT_WA_SETTINGS.feesReminderTemplate;
+  if(d1) d1.value = s.initialDays;
+  if(d2) d2.value = s.followupDays;
+
+  if(btn){
+    btn.addEventListener('click', ()=>{
+      const updated = {
+        instituteName: inst ? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName,
+        initialTemplate: t1 ? t1.value.trim() || DEFAULT_WA_SETTINGS.initialTemplate : DEFAULT_WA_SETTINGS.initialTemplate,
+        followupTemplate: t2 ? t2.value.trim() || DEFAULT_WA_SETTINGS.followupTemplate : DEFAULT_WA_SETTINGS.followupTemplate,
+        feesReminderTemplate: t3 ? t3.value.trim() || DEFAULT_WA_SETTINGS.feesReminderTemplate : DEFAULT_WA_SETTINGS.feesReminderTemplate,
+        initialDays: d1 ? Number(d1.value || 0) : 0,
+        followupDays: d2 ? Number(d2.value || 3) : 3
+      };
+      saveWaSettingsToStorage(updated);
+      alert('WhatsApp settings जतन झाले.');
+    });
+  }
 }
 
 function fillTemplate(tpl, enquiry, settings){
@@ -1199,10 +1223,7 @@ function normalizeMobile(m){
   if(s.length === 10) return s;
   return s;
 }
-
-window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
-  const e = enquiries.find(x=> x.id === id); if(!e){ alert("Enquiry सापडली नाही"); return; }
-  window.sendFeesReminderWhatsApp = async function(student){
+ window.sendFeesReminderWhatsApp = async function(student){
   if(!student) return;
 
   const settings = loadWaSettings();
@@ -1240,6 +1261,9 @@ window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
   const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(msg)}`;
   window.open(url, "_blank");
 };
+window.sendEnquiryWhatsApp = function(id, mode = 'auto'){
+  const e = enquiries.find(x=> x.id === id); if(!e){ alert("Enquiry सापडली नाही"); return; }
+ 
 
   const settings = loadWaSettings();
   const created = e.created_at ? new Date(e.created_at) : new Date();
@@ -1491,13 +1515,7 @@ function populateCourseDropdowns(){
 
 
 // ===== EDIT COURSE (FINAL FIX: NAME + FEE) =====
-async function editCourse(id){
-  try{
-    const course = courses.find(c => String(c.id) === String(id));
-    if(!course){
-      alert("Course not found");
-      return;
-    }
+
 
     // Ask name
     const newName = prompt("Edit course name:", course.name);
