@@ -790,25 +790,7 @@ const payload = {
   }, 100);
 } // <-- end of openFeesModal function
 
-function initWaSettingsUI(){
-  const ta = $("wa-template-text");
-  if(!ta) return;
 
-  // load saved template
-  ta.value = loadWATemplate();
-
-  const saveBtn = $("save-wa-template");
-  if(saveBtn){
-    saveBtn.addEventListener("click", ()=>{
-      const txt = ta.value.trim();
-      if(!txt){
-        alert("Template cannot be empty");
-        return;
-      }
-      saveWATemplate(txt);
-      alert("WhatsApp template saved ✅");
-    });
-  }
 
   const resetBtn = $("reset-wa-template");
   if(resetBtn){
