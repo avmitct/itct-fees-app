@@ -376,8 +376,9 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
       <div class="actions" style="display:flex;flex-direction:column;gap:6px;">
         <button class="pay-btn">${"फीस भरा"}</button>
         <button class="view-btn">पहा</button>
+        <button class="wa-fees-btn">📲 Fees Reminder</button>
         <button class="edit-btn admin-only">✏️ Edit</button>
-        <button class="delete-btn admin-only">हटवा</button>
+                <button class="delete-btn admin-only">हटवा</button>
       </div>
     `;
 
@@ -387,6 +388,12 @@ if (token !== renderStudentsToken) return; // 🚫 cancel stale renders
 
     const viewBtn = li.querySelector(".view-btn");
     if(viewBtn) viewBtn.addEventListener("click", ()=> showStudentFeesHistory(s.id));
+const waFeesBtn = li.querySelector(".wa-fees-btn");
+if(waFeesBtn){
+  waFeesBtn.addEventListener("click", ()=>{
+    sendFeesReminderWhatsApp(s, balance);
+  });
+}
 
     const delBtn = li.querySelector(".delete-btn");
     if(delBtn){
@@ -1151,6 +1158,15 @@ const DEFAULT_WA_SETTINGS = {
   initialDays: 0,
   followupDays: 3
 };
+// ===== Fees Reminder WhatsApp (ADD-ONLY) =====
+const DEFAULT_FEES_REMINDER_TEMPLATE =
+`नमस्कार {NAME},
+आपल्या {COURSE} कोर्सची फी बाकी आहे.
+
+💰 बाकी फी: ₹{BALANCE}
+
+कृपया लवकरात लवकर फी भरण्यासाठी संपर्क करा.
+– {INSTITUTE}`;
 
 function loadWaSettings(){ try{ const raw=localStorage.getItem(WA_SETTINGS_KEY); if(!raw) return {...DEFAULT_WA_SETTINGS}; const parsed=JSON.parse(raw); return {...DEFAULT_WA_SETTINGS, ...parsed}; }catch{ return {...DEFAULT_WA_SETTINGS}; } }
 function saveWaSettingsToStorage(settings){ localStorage.setItem(WA_SETTINGS_KEY, JSON.stringify(settings)); }
@@ -1568,4 +1584,33 @@ async function editCourse(id){
 // If HTML buttons call old function names, redirect them here
 window.editCourseName = editCourse;
 window.editOnlyCourseName = editCourse;
+// ===== SEND FEES REMINDER WHATSAPP (SAFE ADD) =====
+window.sendFeesReminderWhatsApp = function(student, balance){
+  try{
+    if(!student) return;
+
+    const settings = loadWaSettings ? loadWaSettings() : {};
+    const tpl = settings.feesReminderTemplate || DEFAULT_FEES_REMINDER_TEMPLATE;
+
+    const msg = tpl
+      .replace(/\{NAME\}/gi, student.name || "")
+      .replace(/\{COURSE\}/gi, student.course_name || "")
+      .replace(/\{BALANCE\}/gi, Number(balance || 0).toFixed(2))
+      .replace(/\{INSTITUTE\}/gi,
+        settings.instituteName || "ITCT Computer Education, Nandurbar"
+      );
+
+    const mobile = (student.mobile || "").replace(/\D/g,"");
+    if(mobile.length !== 10){
+      alert("Valid mobile number नाही.");
+      return;
+    }
+
+    const url = `https://wa.me/91${mobile}?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank");
+  }catch(err){
+    console.error("Fees reminder WhatsApp error:", err);
+    alert("WhatsApp message पाठवताना त्रुटी आली.");
+  }
+};
 
