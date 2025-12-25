@@ -1590,7 +1590,11 @@ window.sendFeesReminderWhatsApp = function(student, balance){
     if(!student) return;
 
     const settings = loadWaSettings ? loadWaSettings() : {};
-    const tpl = settings.feesReminderTemplate || DEFAULT_FEES_REMINDER_TEMPLATE;
+    const tpl =
+  document.getElementById("wa-tpl-fees")?.value?.trim()
+  || settings.feesReminderTemplate
+  || DEFAULT_FEES_REMINDER_TEMPLATE;
+
 
     const msg = tpl
       .replace(/\{NAME\}/gi, student.name || "")
