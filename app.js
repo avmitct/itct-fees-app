@@ -1155,6 +1155,11 @@ const DEFAULT_WA_SETTINGS = {
 `नमस्कार {NAME},
 आपल्या {COURSE} कोर्स बाबतच्या enquiry चा follow-up करत आहे.
 आपण admission बद्दल निर्णय घेतला का? काही शंका असल्यास मला कळवा.`,
+  feesReminderTemplate:
+`नमस्कार {NAME},
+आपल्या {COURSE} कोर्सची फी बाकी आहे.
+💰 बाकी फी: ₹{BALANCE}`
+
   initialDays: 0,
   followupDays: 3
 };
@@ -1173,9 +1178,13 @@ function saveWaSettingsToStorage(settings){ localStorage.setItem(WA_SETTINGS_KEY
 
 function initWaSettingsUI(){
   const s = loadWaSettings();
-  const inst = $('wa-inst-name'); const t1 = $('wa-tpl-initial'); const t2 = $('wa-tpl-followup'); const d1 = $('wa-initial-days'); const d2 = $('wa-followup-days'); const btn = $('wa-save-settings');
-  if(inst) inst.value = s.instituteName; if(t1) t1.value = s.initialTemplate; if(t2) t2.value = s.followupTemplate; if(d1) d1.value = s.initialDays; if(d2) d2.value = s.followupDays;
-  if(btn) btn.addEventListener('click', ()=>{ const updated = { instituteName: inst? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName, initialTemplate: t1? (t1.value.trim()||DEFAULT_WA_SETTINGS.initialTemplate) : DEFAULT_WA_SETTINGS.initialTemplate, followupTemplate: t2? (t2.value.trim()||DEFAULT_WA_SETTINGS.followupTemplate) : DEFAULT_WA_SETTINGS.followupTemplate, initialDays: d1? Number(d1.value||0) : 0, followupDays: d2? Number(d2.value||3) : 3 }; saveWaSettingsToStorage(updated); alert('WhatsApp settings जतन झाले.'); });
+  const inst = $('wa-inst-name'); const t1 = $('wa-tpl-initial'); const t2 = $('wa-tpl-followup');const t2 = $('wa-tpl-followup'); const d1 = $('wa-initial-days'); const d2 = $('wa-followup-days'); const btn = $('wa-save-settings');
+  if(inst) inst.value = s.instituteName; if(t1) t1.value = s.initialTemplate; if(t2) t2.value = s.followupTemplate;if(t3) t3.value = s.feesReminderTemplate || DEFAULT_WA_SETTINGS.feesReminderTemplate;
+ if(d1) d1.value = s.initialDays; if(d2) d2.value = s.followupDays;
+  if(btn) btn.addEventListener('click', ()=>{ const updated = { instituteName: inst? inst.value.trim() || DEFAULT_WA_SETTINGS.instituteName : DEFAULT_WA_SETTINGS.instituteName, initialTemplate: t1? (t1.value.trim()||DEFAULT_WA_SETTINGS.initialTemplate) : DEFAULT_WA_SETTINGS.initialTemplate, followupTemplate: t2? (t2.value.trim()||DEFAULT_WA_SETTINGS.followupTemplate) : DEFAULT_WA_SETTINGS.followupTemplate,feesReminderTemplate:
+  t3 ? t3.value.trim() || DEFAULT_WA_SETTINGS.feesReminderTemplate
+     : DEFAULT_WA_SETTINGS.feesReminderTemplate,
+ initialDays: d1? Number(d1.value||0) : 0, followupDays: d2? Number(d2.value||3) : 3 }; saveWaSettingsToStorage(updated); alert('WhatsApp settings जतन झाले.'); });
 }
 
 function fillTemplate(tpl, enquiry, settings){
