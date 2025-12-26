@@ -53,6 +53,18 @@ function applyRoleUI() {
     if (isAdmin()) el.classList.remove("hidden"); else el.classList.add("hidden");
   });
 }
+function toggleAdminApprovalSection(){
+  const sec = document.getElementById("admin-approval");
+  if(!sec) return;
+
+  if(currentUser && currentUser.role === "admin"){
+    sec.classList.remove("hidden");
+    loadPendingStudents();
+    loadPendingFees();
+  }else{
+    sec.classList.add("hidden");
+  }
+}
 
 // ============== Show Sections =================
 function showSection(sectionId) {
@@ -93,6 +105,88 @@ async function loadUsers(){
 
 // ============== Renderers =================
 // ============== Students CRUD =================
+async function loadPendingStudents(){
+  const ul = $("pending-students-list");
+  if(!ul) return;
+
+  ul.innerHTML = "Loading...";
+
+  const { data, error } = await supa
+    .from("pending_students")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if(error){
+    console.error(error);
+    ul.innerHTML = "<li>Error loading pending admissions</li>";
+    return;
+  }
+
+  if(!data.length){
+    ul.innerHTML = "<li>No pending admissions</li>";
+    return;
+  }
+
+  ul.innerHTML = "";
+  data.forEach(p=>{
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${p.name}</strong> (${p.course}) – ₹${p.total_fee}
+      <br>
+      <button onclick="approveStudent('${p.id}')">✅ Approve</button>
+      <button onclick="rejectStudent('${p.id}')">❌ Reject</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+async function approveStudent(pendingId){
+  const { data: p, error } = await supa
+    .from("pending_students")
+    .select("*")
+    .eq("id", pendingId)
+    .single();
+
+  if(error || !p){
+    alert("Pending admission not found");
+    return;
+  }
+
+  const studentPayload = {
+    name: p.name,
+    mobile: p.mobile,
+    course_name: p.course,
+    total_fee: p.total_fee,
+    address: p.address,
+    dob: p.dob
+  };
+
+  const ins = await supa.from("students").insert([studentPayload]);
+  if(ins.error){
+    console.error(ins.error);
+    alert("Admission approve failed");
+    return;
+  }
+
+  await supa.from("pending_students")
+    .update({ status: "approved" })
+    .eq("id", pendingId);
+
+  await loadStudents();
+  loadPendingStudents();
+  renderStudents();
+  renderDashboard();
+}
+
+async function rejectStudent(pendingId){
+  await supa.from("pending_students")
+    .update({ status: "rejected" })
+    .eq("id", pendingId);
+
+  loadPendingStudents();
+}
+
 async function saveStudent(){
   if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
 
@@ -859,6 +953,89 @@ closeModal();
     if (el) el.focus();
   }, 100);
 } // <-- end of openFeesModal function
+// ===== ADMIN APPROVAL : PENDING FEES =====
+async function loadPendingFees(){
+  const ul = $("pending-fees-list");
+  if(!ul) return;
+
+  ul.innerHTML = "Loading...";
+
+  const { data, error } = await supa
+    .from("pending_fees")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if(error){
+    console.error(error);
+    ul.innerHTML = "<li>Error loading pending fees</li>";
+    return;
+  }
+
+  if(!data.length){
+    ul.innerHTML = "<li>No pending fees</li>";
+    return;
+  }
+
+  ul.innerHTML = "";
+  data.forEach(p=>{
+    const li = document.createElement("li");
+    li.innerHTML = `
+      Student ID: ${p.student_id} – ₹${p.amount}
+      <br>
+      <button onclick="approveFee('${p.id}')">✅ Approve</button>
+      <button onclick="rejectFee('${p.id}')">❌ Reject</button>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+async function approveFee(pendingId){
+  const { data: p, error } = await supa
+    .from("pending_fees")
+    .select("*")
+    .eq("id", pendingId)
+    .single();
+
+  if(error || !p){
+    alert("Pending fee not found");
+    return;
+  }
+
+  const feePayload = {
+    student_id: p.student_id,
+    amount: p.amount,
+    discount: p.discount,
+    receipt_no: p.receipt_no,
+    date: p.fee_date
+  };
+
+  const ins = await supa.from("fees").insert([feePayload]);
+  if(ins.error){
+    console.error(ins.error);
+    alert("Fee approve failed");
+    return;
+  }
+
+  await supa
+    .from("pending_fees")
+    .update({ status: "approved" })
+    .eq("id", pendingId);
+
+  loadPendingFees();
+  renderStudents();
+  renderDashboard();
+}
+
+async function rejectFee(pendingId){
+  await supa
+    .from("pending_fees")
+    .update({ status: "rejected" })
+    .eq("id", pendingId);
+
+  loadPendingFees();
+}
+
 
 // small helper to escape HTML (prevent XSS when injecting name)
 function escapeHtml(str) {
@@ -1407,7 +1584,8 @@ async function handleLogin(){
   if($("current-user-role")) $("current-user-role").textContent = currentUser.role;
   if($("login-section")) $("login-section").classList.add("hidden");
   if($("app-section")) $("app-section").classList.remove("hidden");
-  applyRoleUI(); await refreshAllData(); showSection("dashboard-section");
+  applyRoleUI(); await refreshAllData(); showSection("dashboard-section");toggleAdminApprovalSection();
+
 }
 function handleLogout(){ currentUser = null; localStorage.removeItem("itct_current_user"); if($("app-section")) $("app-section").classList.add("hidden"); if($("login-section")) $("login-section").classList.remove("hidden"); }
 
