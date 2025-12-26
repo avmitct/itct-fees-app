@@ -893,13 +893,14 @@ const payload = {
       // 🔐 LEVEL-1 APPROVAL (FEES → pending_fees)
 if(currentUser.role === "data-entry"){
   const pendingFeePayload = {
-    student_id: payload.student_id,
-    amount: payload.amount,
-    discount: payload.discount || 0,
-    receipt_no: payload.receipt_no || "",
-    fee_date: payload.date || new Date().toISOString().slice(0,10),
-    created_by: currentUser.username
-  };
+  student_id: payload.student_id,
+  amount: payload.total_fee,          // ✅ FIX
+  discount: payload.discount || 0,
+  receipt_no: payload.receipt_no || "",
+  fee_date: payload.date,
+  created_by: currentUser.username
+};
+
 
   const { error } = await supaClient
     .from("pending_fees")
@@ -1003,12 +1004,13 @@ async function approveFee(pendingId){
   }
 
   const feePayload = {
-    student_id: p.student_id,
-    total_fee: Number(p.amount || 0),
-    discount: p.discount,
-    receipt_no: p.receipt_no,
-    date: p.fee_date
-  };
+  student_id: p.student_id,
+  total_fee: Number(p.amount || 0),   // ✅ CORRECT COLUMN
+  discount: Number(p.discount || 0),
+  receipt_no: p.receipt_no || null,
+  date: p.fee_date
+};
+
 
   const ins = await supa.from("fees").insert([feePayload]);
   if(ins.error){
