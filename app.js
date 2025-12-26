@@ -1004,7 +1004,7 @@ async function approveFee(pendingId){
 
   const feePayload = {
     student_id: p.student_id,
-    amount: p.amount,
+    total_fee: Number(p.amount || 0),
     discount: p.discount,
     receipt_no: p.receipt_no,
     date: p.fee_date
