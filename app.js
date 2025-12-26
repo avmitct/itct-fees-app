@@ -1635,8 +1635,9 @@ window.sendFeesReminderWhatsApp = function(student, balance){
   }
 };
 
-// ===== BULK FEES REMINDER (CORRECT & ACCURATE) =====
+// ===== BULK FEES REMINDER WITH PROGRESS =====
 window.sendBulkFeesReminderWhatsApp = async function(){
+
   if(!Array.isArray(students) || students.length === 0){
     alert("Students list उपलब्ध नाही.");
     return;
@@ -1647,11 +1648,16 @@ window.sendBulkFeesReminderWhatsApp = async function(){
   );
   if(!confirmed) return;
 
-  let delay = 0;
-  let count = 0;
+  const progressEl = document.getElementById("bulk-wa-progress");
+  if(progressEl){
+    progressEl.style.display = "block";
+    progressEl.textContent = "Preparing reminders...";
+  }
 
+  let eligible = [];
+
+  // 🔹 First pass: find students with pending fees
   for(const s of students){
-    // ✅ SAME logic used everywhere else
     const feeRows = await getFeesForStudent(s.id);
 
     const total = Number(s.total_fee || 0);
@@ -1665,17 +1671,41 @@ window.sendBulkFeesReminderWhatsApp = async function(){
     const balance = Math.max(0, total - paid - discount);
 
     if(balance > 0){
-      count++;
-      setTimeout(()=>{
-        sendFeesReminderWhatsApp(s, balance);
-      }, delay);
-      delay += 1500; // safe gap
+      eligible.push({ student: s, balance });
     }
   }
 
-  if(count === 0){
-    alert("कोणत्याही विद्यार्थ्याची फी बाकी नाही.");
-  }else{
-    alert(count + " विद्यार्थ्यांसाठी WhatsApp reminder तयार आहे.");
+  if(eligible.length === 0){
+    if(progressEl){
+      progressEl.textContent = "कोणत्याही विद्यार्थ्याची फी बाकी नाही.";
+    }
+    return;
   }
+
+  let sent = 0;
+  const totalCount = eligible.length;
+
+  // 🔹 Second pass: send WhatsApp with progress
+  eligible.forEach((item, index)=>{
+    setTimeout(()=>{
+      sent++;
+
+      if(progressEl){
+        progressEl.textContent =
+          `Sending WhatsApp reminders: ${sent} / ${totalCount}`;
+      }
+
+      sendFeesReminderWhatsApp(item.student, item.balance);
+
+      // Finish message
+      if(sent === totalCount){
+        setTimeout(()=>{
+          if(progressEl){
+            progressEl.textContent = "Bulk WhatsApp reminders completed.";
+          }
+        }, 1000);
+      }
+
+    }, index * 1500); // 1.5 sec gap
+  });
 };
