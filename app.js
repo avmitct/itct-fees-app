@@ -15,12 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if($("app-section")) $("app-section").classList.add("hidden");
   if($("login-section")) $("login-section").classList.remove("hidden");
 });
-document.addEventListener("DOMContentLoaded", () => {
-  const bulkBtn = document.getElementById("bulk-fees-wa-btn");
-  if(bulkBtn){
-    bulkBtn.addEventListener("click", sendBulkFeesReminderWhatsApp);
-  }
-});
 
 
 // ============== Utilities =================
@@ -1635,47 +1629,3 @@ window.sendFeesReminderWhatsApp = function(student, balance){
   }
 };
 
-// ===== BULK FEES REMINDER (CORRECT & ACCURATE) =====
-window.sendBulkFeesReminderWhatsApp = async function(){
-  if(!Array.isArray(students) || students.length === 0){
-    alert("Students list उपलब्ध नाही.");
-    return;
-  }
-
-  const confirmed = confirm(
-    "ज्या विद्यार्थ्यांची फी बाकी आहे त्यांना WhatsApp reminder पाठवायचा आहे का?"
-  );
-  if(!confirmed) return;
-
-  let delay = 0;
-  let count = 0;
-
-  for(const s of students){
-    // ✅ SAME logic used everywhere else
-    const feeRows = await getFeesForStudent(s.id);
-
-    const total = Number(s.total_fee || 0);
-    const paid = feeRows.reduce(
-      (a,r)=> a + Number(r.amount || r.total_fee || 0), 0
-    );
-    const discount = feeRows.reduce(
-      (a,r)=> a + Number(r.discount || 0), 0
-    );
-
-    const balance = Math.max(0, total - paid - discount);
-
-    if(balance > 0){
-      count++;
-      setTimeout(()=>{
-        sendFeesReminderWhatsApp(s, balance);
-      }, delay);
-      delay += 1500; // safe gap
-    }
-  }
-
-  if(count === 0){
-    alert("कोणत्याही विद्यार्थ्याची फी बाकी नाही.");
-  }else{
-    alert(count + " विद्यार्थ्यांसाठी WhatsApp reminder तयार आहे.");
-  }
-};
