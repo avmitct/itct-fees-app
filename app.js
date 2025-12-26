@@ -112,10 +112,19 @@ async function loadPendingStudents(){
   ul.innerHTML = "Loading...";
 
   const { data, error } = await supa
-    .from("pending_students")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
+  .from("pending_fees")
+  .select(`
+    id,
+    amount,
+    discount,
+    receipt_no,
+    fee_date,
+    student_id,
+    students:students ( name, course_name )
+  `)
+  .eq("status", "pending")
+  .order("created_at", { ascending: false });
+
 
   if(error){
     console.error(error);
@@ -982,11 +991,16 @@ async function loadPendingFees(){
   data.forEach(p=>{
     const li = document.createElement("li");
     li.innerHTML = `
-      Student ID: ${p.student_id} – ₹${p.amount}
-      <br>
-      <button onclick="approveFee('${p.id}')">✅ Approve</button>
-      <button onclick="rejectFee('${p.id}')">❌ Reject</button>
-    `;
+      const studentName = p.students?.name || "Unknown Student";
+const courseName = p.students?.course_name ? ` (${p.students.course_name})` : "";
+
+li.innerHTML = `
+  ${studentName}${courseName} – ₹${p.amount}
+  <br>
+  <button onclick="approveFee('${p.id}')">✅ Approve</button>
+  <button onclick="rejectFee('${p.id}')">❌ Reject</button>
+`;
+
     ul.appendChild(li);
   });
 }
