@@ -495,18 +495,25 @@ const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
 };
 
 
-  // 🔐 LEVEL-1 APPROVAL LOGIC (ADMISSION)
+// 🔐 LEVEL-1 APPROVAL (ADMISSION → pending_students)
 if(currentUser.role === "data-entry"){
+  const pendingPayload = {
+    name: payload.name,
+    mobile: payload.mobile,
+    course: payload.course_name,   // ✅ map correctly
+    total_fee: payload.total_fee,
+    address: payload.address || "",
+    dob: payload.dob || null,
+    created_by: currentUser.username
+  };
+
   const { error } = await supa
     .from("pending_students")
-    .insert([{
-      ...payload,
-      created_by: currentUser.username
-    }]);
+    .insert([pendingPayload]);
 
   if(error){
-    console.error(error);
-    alert("Admission pending मध्ये save करताना त्रुटी");
+    console.error("Pending student insert error:", error);
+    alert(error.message || "Admission pending मध्ये save करताना त्रुटी");
     return;
   }
 
@@ -515,6 +522,7 @@ if(currentUser.role === "data-entry"){
   showSection("students-list");
   return; // ⛔ VERY IMPORTANT
 }
+
 
 // 👑 ADMIN → DIRECT LIVE
 const { data, error } = await supa
