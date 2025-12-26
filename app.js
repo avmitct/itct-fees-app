@@ -1651,10 +1651,7 @@ window.sendBulkFeesReminderWhatsApp = function(){
 if(!confirmed) return;
 
   students.forEach(s=>{
-    const total = Number(s.total_fee || 0);
-    const paid = Number(s.paid_fee || 0);
-    const discount = Number(s.discount || 0);
-    const balance = Math.max(0, total - paid - discount);
+    const balance = Number(s.balance_fee ?? s.balance ?? 0);
 
     if(balance > 0){
       count++;
