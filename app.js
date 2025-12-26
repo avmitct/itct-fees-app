@@ -495,8 +495,39 @@ const courseFee  = selectedOpt ? Number(selectedOpt.dataset.fee || 0) : 0;
 };
 
 
-  const { data, error } = await supa.from("students").insert(payload).select().single();
-  if(error){ console.error(error); alert("Student save करताना त्रुटी"); return; }
+  // 🔐 LEVEL-1 APPROVAL LOGIC (ADMISSION)
+if(currentUser.role === "data-entry"){
+  const { error } = await supa
+    .from("pending_students")
+    .insert([{
+      ...payload,
+      created_by: currentUser.username
+    }]);
+
+  if(error){
+    console.error(error);
+    alert("Admission pending मध्ये save करताना त्रुटी");
+    return;
+  }
+
+  alert("Admission saved. Admin approval pending.");
+  clearStudentForm();
+  showSection("students-list");
+  return; // ⛔ VERY IMPORTANT
+}
+
+// 👑 ADMIN → DIRECT LIVE
+const { data, error } = await supa
+  .from("students")
+  .insert(payload)
+  .select()
+  .single();
+
+if(error){
+  console.error(error);
+  alert("Student save करताना त्रुटी");
+  return;
+}
   students.unshift(data);
   clearStudentForm(); renderStudents(); renderDashboard(); showSection("students-list");
 }
@@ -757,16 +788,42 @@ const payload = {
 
         // insert into supabase
         
-        const { data, error } = await supaClient.from("fees").insert([payload]).select().single();
-        if (error) {
-          console.error("Fees insert error:", error);
-          alert("Fees save करताना त्रुटी — Console तपासा.");
-          return;
-        }
-        console.log("Fees inserted:", data);
-        alert("Fees saved successfully.");
+       // 🔐 LEVEL-1 APPROVAL LOGIC (FEES)
+if(currentUser.role === "data-entry"){
+  const { error } = await supaClient
+    .from("pending_fees")
+    .insert([{
+      ...payload,
+      created_by: currentUser.username
+    }]);
 
-        closeModal();
+  if(error){
+    console.error(error);
+    alert("Fees pending मध्ये save करताना त्रुटी");
+    return;
+  }
+
+  alert("Fees entry submitted. Admin approval pending.");
+  closeModal();
+  return; // ⛔ VERY IMPORTANT
+}
+
+// 👑 ADMIN → DIRECT LIVE
+const { data, error } = await supaClient
+  .from("fees")
+  .insert([payload])
+  .select()
+  .single();
+
+if (error) {
+  console.error("Fees insert error:", error);
+  alert("Fees save करताना त्रुटी — Console तपासा.");
+  return;
+}
+
+alert("Fees saved successfully.");
+closeModal();
+
 
         // refresh local data lists on UI (call your existing loaders)
         if (typeof loadFees === "function") await loadFees();
