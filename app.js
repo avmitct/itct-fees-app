@@ -988,21 +988,24 @@ async function loadPendingFees(){
   }
 
   ul.innerHTML = "";
-  data.forEach(p=>{
-    const li = document.createElement("li");
-    li.innerHTML = `
-      const studentName = p.students?.name || "Unknown Student";
-const courseName = p.students?.course_name ? ` (${p.students.course_name})` : "";
+ data.forEach(p => {
+  const li = document.createElement("li");
 
-li.innerHTML = `
-  ${studentName}${courseName} – ₹${p.amount}
-  <br>
-  <button onclick="approveFee('${p.id}')">✅ Approve</button>
-  <button onclick="rejectFee('${p.id}')">❌ Reject</button>
-`;
+  const studentName = p.students?.name || "Unknown Student";
+  const courseName = p.students?.course_name
+    ? ` (${p.students.course_name})`
+    : "";
 
-    ul.appendChild(li);
-  });
+  li.innerHTML = `
+    ${studentName}${courseName} – ₹${p.amount}
+    <br>
+    <button onclick="approveFee('${p.id}')">✅ Approve</button>
+    <button onclick="rejectFee('${p.id}')">❌ Reject</button>
+  `;
+
+  ul.appendChild(li);
+});
+
 }
 
 async function approveFee(pendingId){
