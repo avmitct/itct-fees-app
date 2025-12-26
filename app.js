@@ -972,7 +972,16 @@ async function loadPendingFees(){
 
   const { data, error } = await supa
     .from("pending_fees")
-    .select("*")
+    .select(`
+  id,
+  amount,
+  discount,
+  receipt_no,
+  fee_date,
+  student_id,
+  students:students ( name, course_name )
+`)
+
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
