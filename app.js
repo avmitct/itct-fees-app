@@ -796,18 +796,24 @@ const payload = {
 
         // insert into supabase
         
-       // 🔐 LEVEL-1 APPROVAL LOGIC (FEES)
+      // 🔐 LEVEL-1 APPROVAL (FEES → pending_fees)
 if(currentUser.role === "data-entry"){
+  const pendingFeePayload = {
+    student_id: payload.student_id,
+    amount: payload.amount,
+    discount: payload.discount || 0,
+    receipt_no: payload.receipt_no || "",
+    fee_date: payload.date || new Date().toISOString().slice(0,10),
+    created_by: currentUser.username
+  };
+
   const { error } = await supaClient
     .from("pending_fees")
-    .insert([{
-      ...payload,
-      created_by: currentUser.username
-    }]);
+    .insert([pendingFeePayload]);
 
   if(error){
-    console.error(error);
-    alert("Fees pending मध्ये save करताना त्रुटी");
+    console.error("Pending fees insert error:", error);
+    alert(error.message || "Fees pending मध्ये save करताना त्रुटी");
     return;
   }
 
@@ -815,6 +821,7 @@ if(currentUser.role === "data-entry"){
   closeModal();
   return; // ⛔ VERY IMPORTANT
 }
+
 
 // 👑 ADMIN → DIRECT LIVE
 const { data, error } = await supaClient
