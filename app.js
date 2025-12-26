@@ -170,7 +170,7 @@ async function approveStudent(pendingId){
   }
 
   await supa.from("pending_students")
-    .update({ status: "approved" })
+    .delete()
     .eq("id", pendingId);
 
   await loadStudents();
@@ -1019,12 +1019,15 @@ async function approveFee(pendingId){
 
   await supa
     .from("pending_fees")
-    .update({ status: "approved" })
+    .delete()
     .eq("id", pendingId);
 
-  loadPendingFees();
-  renderStudents();
-  renderDashboard();
+ // ✅ REFRESH EVERYTHING
+await loadFees();
+await loadStudents();
+renderStudents();
+renderDashboard();
+loadPendingFees();
 }
 
 async function rejectFee(pendingId){
