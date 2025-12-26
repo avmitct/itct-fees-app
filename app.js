@@ -112,19 +112,9 @@ async function loadPendingStudents(){
   ul.innerHTML = "Loading...";
 
   const { data, error } = await supa
-  .from("pending_fees")
-  .select(`
-    id,
-    amount,
-    discount,
-    receipt_no,
-    fee_date,
-    student_id,
-    students:students ( name, course_name )
-  `)
-  .eq("status", "pending")
-  .order("created_at", { ascending: false });
-
+    .from("pending_students")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   if(error){
     console.error(error);
@@ -132,7 +122,7 @@ async function loadPendingStudents(){
     return;
   }
 
-  if(!data.length){
+  if(!data || data.length === 0){
     ul.innerHTML = "<li>No pending admissions</li>";
     return;
   }
@@ -141,7 +131,8 @@ async function loadPendingStudents(){
   data.forEach(p=>{
     const li = document.createElement("li");
     li.innerHTML = `
-      <strong>${p.name}</strong> (${p.course}) – ₹${p.total_fee}
+      <strong>${escapeHtml(p.name)}</strong>
+      (${escapeHtml(p.course)}) – ₹${Number(p.total_fee||0).toFixed(2)}
       <br>
       <button onclick="approveStudent('${p.id}')">✅ Approve</button>
       <button onclick="rejectStudent('${p.id}')">❌ Reject</button>
@@ -972,15 +963,7 @@ async function loadPendingFees(){
 
   const { data, error } = await supa
     .from("pending_fees")
-    .select(`
-  id,
-  amount,
-  discount,
-  receipt_no,
-  fee_date,
-  student_id,
-  students:students ( name, course_name )
-`)
+    .select("*")
 
     .eq("status", "pending")
     .order("created_at", { ascending: false });
@@ -1000,11 +983,12 @@ async function loadPendingFees(){
  data.forEach(p => {
   const li = document.createElement("li");
 
-  const studentName = p.students?.name || "Unknown Student";
-  const courseName = p.students?.course_name
-    ? ` (${p.students.course_name})`
-    : "";
+  const student = students.find(s => s.id === p.student_id);
 
+const studentName = student ? student.name : "Unknown Student";
+const courseName = student && student.course_name
+  ? ` (${student.course_name})`
+  : "";
   li.innerHTML = `
     ${studentName}${courseName} – ₹${p.amount}
     <br>
