@@ -94,21 +94,9 @@ async function loadEnquiries(){
 }
 async function loadFees(){
   if(!supa) return (fees = []);
-
-  const { data, error } = await supa
-    .from("fees")
-    .select("*")
-    .eq("is_deleted", false)   // ✅ IMPORTANT
-    .order("date",{ ascending:false });
-
-  if(error){
-    console.error(error);
-    fees=[];
-  }else{
-    fees=data||[];
-  }
+  const {data,error}=await supa.from("fees").select("*").order("date",{ascending:false});
+  if(error){console.error(error);fees=[];}else fees=data||[];
 }
-
 async function loadUsers(){
   if(!supa) return (users = []);
   const {data,error}=await supa.from("users").select("*").order("username",{ascending:true});
@@ -229,59 +217,22 @@ async function saveStudent(){
 
 function clearStudentForm(){ ["name","dob","age","address","mobile","mobile2","course-duedate"].forEach(id=>{ const el=$(id); if(el) el.value=""; }); if($("course-select")) $("course-select").selectedIndex=0; }
 
-async function deleteStudent(id){
-  if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return;
-  if(!supa){ alert("Supabase client उपलब्ध नाही."); return; }
-
-  // 1️⃣ Soft-delete all fees of this student
-  const { error: feeErr } = await supa
-    .from("fees")
-    .update({ is_deleted: true })
-    .eq("student_id", id);
-
-  if(feeErr){
-    console.error(feeErr);
-    alert("Fees soft delete error");
-    return;
-  }
-
-  // 2️⃣ Delete student (hard delete OR you can also soft delete later)
-  const { error } = await supa
-    .from("students")
-    .delete()
-    .eq("id", id);
-
-  if(error){
-    console.error(error);
-    alert("Student delete error");
-    return;
-  }
-
-  students = students.filter(s=> s.id !== id);
-
-  await loadFees();     // 🔄 refresh fees
-  renderStudents();
-  renderDashboard();
-}
-
+async function deleteStudent(id){ if(!confirm("हा विद्यार्थी delete करायचा आहे?")) return; if(!supa){ alert("Supabase client उपलब्ध नाही."); return; } const { error } = await supa.from("students").delete().eq("id", id); if(error){console.error(error); alert("Delete error"); return;} students = students.filter(s=> s.id !== id); renderStudents(); renderDashboard(); }
 
 // ---------- Get fees rows for a student ----------
 async function getFeesForStudent(studentId){
   if(!supa) return [];
-  const { data, error } = await supa
-    .from("fees")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("is_deleted", false)   // ✅ FINAL FIX
-    .order("date", { ascending: false });
+  try{
+    const { data, error } = await supa.from("fees")
+      .select("*")
+      .eq("student_id", studentId)
+      .order("date", { ascending: false });
 
-  if(error){
-    console.error(error);
-    return [];
-  }
-  return data || [];
-}
-
+    if(error){
+      console.error("Error fetching fees for student", studentId, error);
+      return [];
+    }
+    return data || [];
   }catch(err){
     console.error("Exception fetching fees for student", err);
     return [];
@@ -1166,11 +1117,7 @@ async function generatePaymentReport(){
   if(typeof loadFees === "function") await loadFees();
   if(typeof loadStudents === "function") await loadStudents();
 
-  const rows = (fees || [])
-  .filter(f => f.is_deleted !== true)   // 🔐 HARD SAFETY
-  .slice()
-  .sort((a,b)=> (b.date||"").localeCompare(a.date||""));
-
+  const rows = (fees || []).slice().sort((a,b)=> (b.date||"").localeCompare(a.date||""));
   let html = `<h4>Payment Report (All payments)</h4>`;
   const selectedCourse = $("report-course")?.value || "";
 
