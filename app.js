@@ -1133,20 +1133,30 @@ async function generatePaymentReport(){
 
   const outRows = [];
   rows.forEach(r=>{
-    const dt = (r.date||"").slice(0,10);
-    const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
-    const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
-      if (selectedCourse && course !== selectedCourse) return;
+  const dt = (r.date||"").slice(0,10);
 
-    html += `<tr>
-      <td>${dt}</td>
-      <td>${escapeHtml(r.receipt_no||"")}</td>
-      <td>${escapeHtml(studentName)}</td>
-      <td>${escapeHtml(course)}</td>
-      <td style="text-align:right;">${Number(r.amount||r.total_fee||0).toFixed(2)}</td>
-      <td style="text-align:right;">${Number(r.discount||0).toFixed(2)}</td>
-      <td>${escapeHtml(r.created_by||r.collected_by||"")}</td>
-    </tr>`;
+  // 🔐 FIND STUDENT
+  const stu = students.find(s => s.id === r.student_id);
+
+  // ⛔ SKIP DELETED STUDENTS (THIS IS THE KEY LINE)
+  if (stu && stu.is_deleted) return;
+
+  const studentName = r.student_name || (stu ? stu.name : "-");
+  const course = (stu ? stu.course_name : r.course_name) || "-";
+
+  if (selectedCourse && course !== selectedCourse) return;
+
+  html += `<tr>
+    <td>${dt}</td>
+    <td>${escapeHtml(r.receipt_no||"")}</td>
+    <td>${escapeHtml(studentName)}</td>
+    <td>${escapeHtml(course)}</td>
+    <td style="text-align:right;">${Number(r.amount||r.total_fee||0).toFixed(2)}</td>
+    <td style="text-align:right;">${Number(r.discount||0).toFixed(2)}</td>
+    <td>${escapeHtml(r.created_by||r.collected_by||"")}</td>
+  </tr>`;
+});
+
     outRows.push({type:"payment", date:dt, receipt:r.receipt_no||"", student:studentName, course:course, amount:Number(r.amount||r.total_fee||0), discount:Number(r.discount||0), collected_by:r.created_by||r.collected_by||""});
   });
 
