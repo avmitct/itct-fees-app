@@ -1625,48 +1625,56 @@ window.addEventListener("load", () => {
 
 
 // ===== ADD COURSE (FIXED) =====
+// ===== ADD COURSE (FINAL FIXED) =====
 async function saveCourse() {
-  // Prevent duplicate
-  const existing = courses.some(c=>c.name.toLowerCase() === (document.getElementById("course-name")?.value||"").trim().toLowerCase());
-  if(existing){ alert("Course already exists"); return; }
+  if (!supa) {
+    alert("Supabase client उपलब्ध नाही");
+    return;
+  }
 
-  try {
-    if (!supa) {
-      alert("Supabase client उपलब्ध नाही");
-      return;
-    }
+  const nameEl = document.getElementById("course-name");
+  const feeEl = document.getElementById("course-fee");
 
-    const nameEl = document.getElementById("course-name");
-    const feeEl = document.getElementById("course-fee");
+  const name = nameEl ? nameEl.value.trim() : "";
+  const fee = feeEl ? Number(feeEl.value || 0) : 0;
 
-    const name = nameEl ? nameEl.value.trim() : "";
-    const fee = feeEl ? feeEl.value : "";
+  if (!name) {
+    alert("Course नाव आवश्यक आहे");
+    return;
+  }
 
-    if (!name) {
-      alert("Course नाव आवश्यक आहे");
-      return;
-    }
+  // prevent duplicate
+  const exists = courses.some(
+    c => c.name.toLowerCase() === name.toLowerCase()
+  );
+  if (exists) {
+    alert("Course already exists");
+    return;
+  }
 
-    const { data, error } = await supa
-      .from("courses")
-      .insert([{ name: name, fee: fee ? Number(fee) : 0 }])
-      .select()
-      .single();
+  const { data, error } = await supa
+    .from("courses")
+    .insert([{ name: name, fee: fee }])
+    .select()
+    .single();
 
-    if (error) {
-      console.error("Course insert error:", error);
-      alert(error.message || "Course save error");
-      return;
-    }
+  if (error) {
+    console.error(error);
+    alert("Course add करताना त्रुटी");
+    return;
+  }
 
-    // refresh UI
-    if (Array.isArray(courses)) courses.push(data);
-    if (typeof renderCourses === "function") renderCourses(); populateCourseDropdowns();
+  courses.push(data);
 
-    if (nameEl) nameEl.value = "";
-    if (feeEl) feeEl.value = "";
+  if (nameEl) nameEl.value = "";
+  if (feeEl) feeEl.value = "";
 
-    alert("Course added successfully");
+  renderCourses();
+  populateCourseDropdowns();
+
+  alert("Course successfully added");
+}
+
   } catch (e) {
     console.error("saveCourse exception:", e);
     alert("Unexpected error while saving course");
