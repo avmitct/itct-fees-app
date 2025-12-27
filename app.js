@@ -268,17 +268,20 @@ async function deleteStudent(id){
 // ---------- Get fees rows for a student ----------
 async function getFeesForStudent(studentId){
   if(!supa) return [];
-  try{
-    const { data, error } = await supa.from("fees")
-      .select("*")
-      .eq("student_id", studentId)
-      .order("date", { ascending: false });
+  const { data, error } = await supa
+    .from("fees")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("is_deleted", false)   // ✅ FINAL FIX
+    .order("date", { ascending: false });
 
-    if(error){
-      console.error("Error fetching fees for student", studentId, error);
-      return [];
-    }
-    return data || [];
+  if(error){
+    console.error(error);
+    return [];
+  }
+  return data || [];
+}
+
   }catch(err){
     console.error("Exception fetching fees for student", err);
     return [];
@@ -1163,7 +1166,11 @@ async function generatePaymentReport(){
   if(typeof loadFees === "function") await loadFees();
   if(typeof loadStudents === "function") await loadStudents();
 
-  const rows = (fees || []).slice().sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  const rows = (fees || [])
+  .filter(f => f.is_deleted !== true)   // 🔐 HARD SAFETY
+  .slice()
+  .sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+
   let html = `<h4>Payment Report (All payments)</h4>`;
   const selectedCourse = $("report-course")?.value || "";
 
