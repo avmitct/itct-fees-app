@@ -1133,30 +1133,20 @@ async function generatePaymentReport(){
 
   const outRows = [];
   rows.forEach(r=>{
-  const dt = (r.date||"").slice(0,10);
+    const dt = (r.date||"").slice(0,10);
+    const studentName = r.student_name || (students.find(s=>s.id===r.student_id)||{}).name || "-";
+    const course = (students.find(s=>s.id===r.student_id)||{}).course_name || r.course_name || "-";
+      if (selectedCourse && course !== selectedCourse) return;
 
-  // 🔐 FIND STUDENT
-  const stu = students.find(s => s.id === r.student_id);
-
-  // ⛔ SKIP DELETED STUDENTS (THIS IS THE KEY LINE)
-  if (stu && stu.is_deleted) return;
-
-  const studentName = r.student_name || (stu ? stu.name : "-");
-  const course = (stu ? stu.course_name : r.course_name) || "-";
-
-  if (selectedCourse && course !== selectedCourse) return;
-
-  html += `<tr>
-    <td>${dt}</td>
-    <td>${escapeHtml(r.receipt_no||"")}</td>
-    <td>${escapeHtml(studentName)}</td>
-    <td>${escapeHtml(course)}</td>
-    <td style="text-align:right;">${Number(r.amount||r.total_fee||0).toFixed(2)}</td>
-    <td style="text-align:right;">${Number(r.discount||0).toFixed(2)}</td>
-    <td>${escapeHtml(r.created_by||r.collected_by||"")}</td>
-  </tr>`;
-});
-
+    html += `<tr>
+      <td>${dt}</td>
+      <td>${escapeHtml(r.receipt_no||"")}</td>
+      <td>${escapeHtml(studentName)}</td>
+      <td>${escapeHtml(course)}</td>
+      <td style="text-align:right;">${Number(r.amount||r.total_fee||0).toFixed(2)}</td>
+      <td style="text-align:right;">${Number(r.discount||0).toFixed(2)}</td>
+      <td>${escapeHtml(r.created_by||r.collected_by||"")}</td>
+    </tr>`;
     outRows.push({type:"payment", date:dt, receipt:r.receipt_no||"", student:studentName, course:course, amount:Number(r.amount||r.total_fee||0), discount:Number(r.discount||0), collected_by:r.created_by||r.collected_by||""});
   });
 
@@ -1625,56 +1615,48 @@ window.addEventListener("load", () => {
 
 
 // ===== ADD COURSE (FIXED) =====
-// ===== ADD COURSE (FINAL FIXED) =====
 async function saveCourse() {
-  if (!supa) {
-    alert("Supabase client उपलब्ध नाही");
-    return;
-  }
+  // Prevent duplicate
+  const existing = courses.some(c=>c.name.toLowerCase() === (document.getElementById("course-name")?.value||"").trim().toLowerCase());
+  if(existing){ alert("Course already exists"); return; }
 
-  const nameEl = document.getElementById("course-name");
-  const feeEl = document.getElementById("course-fee");
+  try {
+    if (!supa) {
+      alert("Supabase client उपलब्ध नाही");
+      return;
+    }
 
-  const name = nameEl ? nameEl.value.trim() : "";
-  const fee = feeEl ? Number(feeEl.value || 0) : 0;
+    const nameEl = document.getElementById("course-name");
+    const feeEl = document.getElementById("course-fee");
 
-  if (!name) {
-    alert("Course नाव आवश्यक आहे");
-    return;
-  }
+    const name = nameEl ? nameEl.value.trim() : "";
+    const fee = feeEl ? feeEl.value : "";
 
-  // prevent duplicate
-  const exists = courses.some(
-    c => c.name.toLowerCase() === name.toLowerCase()
-  );
-  if (exists) {
-    alert("Course already exists");
-    return;
-  }
+    if (!name) {
+      alert("Course नाव आवश्यक आहे");
+      return;
+    }
 
-  const { data, error } = await supa
-    .from("courses")
-    .insert([{ name: name, fee: fee }])
-    .select()
-    .single();
+    const { data, error } = await supa
+      .from("courses")
+      .insert([{ name: name, fee: fee ? Number(fee) : 0 }])
+      .select()
+      .single();
 
-  if (error) {
-    console.error(error);
-    alert("Course add करताना त्रुटी");
-    return;
-  }
+    if (error) {
+      console.error("Course insert error:", error);
+      alert(error.message || "Course save error");
+      return;
+    }
 
-  courses.push(data);
+    // refresh UI
+    if (Array.isArray(courses)) courses.push(data);
+    if (typeof renderCourses === "function") renderCourses(); populateCourseDropdowns();
 
-  if (nameEl) nameEl.value = "";
-  if (feeEl) feeEl.value = "";
+    if (nameEl) nameEl.value = "";
+    if (feeEl) feeEl.value = "";
 
-  renderCourses();
-  populateCourseDropdowns();
-
-  alert("Course successfully added");
-}
-
+    alert("Course added successfully");
   } catch (e) {
     console.error("saveCourse exception:", e);
     alert("Unexpected error while saving course");
